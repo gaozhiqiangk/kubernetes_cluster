@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: logging
+  labels:
+    app: kibana
+spec:
+  revisionHistoryLimit: 3
+  replicas: 1
+  selector:
+    matchLabels:
+      app: kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+    spec:
+      containers:
+      - name: kibana
+        image: docker.elastic.co/kibana/kibana-oss:6.4.2
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: ELASTICSEARCH_URL
+          value: http://elasticsearch-cluster:9200
+        - name: LOGGING_VERBOSE
+          value: true
+        - name: SERVER_PORT
+          value: 5601
+        ports:
+        - name: kibana
+          containerPort: 5601
+          protocol: TCP
+        resources:
+          {}
+        volumeMounts:
+        - name: kibana
+          mountPath: /usr/share/kibana/config/kibana.yml
+          subPath: kibana.yml
+     volumes:
+     - name: kibana
+       configMap:
+         name: kibana
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kibana
+  namespace: logging
+  labels:
+    app: kibana
+spec:
+  selector:
+    app: kibana
+  type: ClusterIP
+  ports:
+  - name: tcp
+    port: 443
+    targetPort: 5601
+    protocol: TCP
+---

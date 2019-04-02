@@ -1,0 +1,31 @@
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: elasticsearch-curator
+  namespace: logging
+  labels:
+    app: elasticsearch-curator
+spec:
+  schedule: "0 1 * * *"
+  jobTemplate:
+    metadata:
+      labels:
+        app: elasticsearch-curator
+    spec:
+      template:
+        metadata:
+          labels:
+            app: elasticsearch-curator
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: elasticsearch-curator
+            image: quay.io/pires/docker-elasticsearch-curator:5.5.4
+            imagePullPolicy: IfNotPresent
+            volumeMounts:
+            - name: config-volume
+              mountPath: /etc/es-curator
+            command: ["curator"]
+            args: ["--config", "/etc/es-curator/config.yml", "/etc/es-curator/action_file.yml"]
+            resources:
+              {}
