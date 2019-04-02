@@ -1,4 +1,3 @@
-# 146
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -7,7 +6,7 @@ metadata:
   labels:
     app: fluent-bit
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   name: fluent-bit
@@ -21,18 +20,19 @@ rules:
   verbs:
   - get
 ---
-apiVersion: rbac.authorization.k8s.io/v1beta1
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   name: fluent-bit
   labels:
   - fluent-bit
 roleRef:
-  apiGroup: rbac.authorization.k8s.io/v1beta1
+  apiGroup: rbac.authorization.k8s.io/v1
   kind: ClusterRole
   name: fluent-bit
 subjects:
-- kind: ServiceAccount
+- apiGroup: ""
+  kind: ServiceAccount
   name: fluent-bit
   namespace: logging
 ---
@@ -40,17 +40,23 @@ apiVersion: apps/v1
 kind: DaemonSet
 metadata:
   name: fluent-bit
+  namespace: logging
   labels:
     app: fluent-bit
 spec:
   updateStrategy:
     type: RollingUpdate
+  selector:
+    matchLabels:
+      app: fluent-bit
   template:
     metadata:
       labels:
         app: fluent-bit
     spec:
+      # 是否使用主机网络,默认为false;如果为true,则表示容器使用宿主机网络,不再使用docker网桥,pod无法再同一宿主机有2个副本
       hostNetwork: false
+      # 设置pod的DNS策略,默认为ClusterFirst;有效值有ClusterFirstWithHostNet,ClusterFirst,Default(None)
       dnsPolicy: ClusterFirst
       serviceAccountName: fluent-bit
       containers:
@@ -92,6 +98,5 @@ spec:
       - name: config
         configMap:
           name: fluent-bit-config
+      # pod终止时的宽限期;0表示立即删除pod,或者可以设置一个宽限时间
       terminationGracePeriodSeconds: 10
-      
-
