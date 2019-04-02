@@ -32,15 +32,18 @@ spec:
           containerPort: 5601
           protocol: TCP
         resources:
-          {}
+          requests:
+            cpu: 100m
+          limits:
+            cpu: 1000m
         volumeMounts:
-        - name: kibana
+        - name: config
           mountPath: /usr/share/kibana/config/kibana.yml
           subPath: kibana.yml
      volumes:
-     - name: kibana
+     - name: config
        configMap:
-         name: kibana
+         name: kibana-config
 ---
 apiVersion: v1
 kind: Service
@@ -55,6 +58,7 @@ spec:
   type: ClusterIP
   ports:
   - name: tcp
+    # port 5601
     port: 443
     targetPort: 5601
     protocol: TCP

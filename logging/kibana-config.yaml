@@ -1,7 +1,7 @@
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: kibana
+  name: kibana-config
   namespace: logging
   labels:
     app: kibana

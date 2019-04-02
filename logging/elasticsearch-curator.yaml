@@ -17,13 +17,17 @@ spec:
           labels:
             app: elasticsearch-curator
         spec:
+          volumes:
+          - name: config
+            configMap:
+              name: elasticsearch-curator-config
           restartPolicy: Never
           containers:
           - name: elasticsearch-curator
             image: quay.io/pires/docker-elasticsearch-curator:5.5.4
             imagePullPolicy: IfNotPresent
             volumeMounts:
-            - name: config-volume
+            - name: config
               mountPath: /etc/es-curator
             command: ["curator"]
             args: ["--config", "/etc/es-curator/config.yml", "/etc/es-curator/action_file.yml"]
