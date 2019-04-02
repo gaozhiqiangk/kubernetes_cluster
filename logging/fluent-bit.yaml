@@ -44,6 +44,7 @@ metadata:
   labels:
     app: fluent-bit
 spec:
+  # pod的更新策略为滚动更新,如pod滚动更新时最多允许减少25%,最多允许增加25%
   updateStrategy:
     type: RollingUpdate
   selector:
