@@ -68,7 +68,7 @@ spec:
       containers:
       - name: elasticsearch-operator
         image: upmcenterprises/elasticsearch-operator:0.2.0
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         env:
         - name: NAMESPACE
           valueFrom:
@@ -89,4 +89,11 @@ spec:
             port: 8000
           initialDelaySeconds: 10
           timeoutSeconds: 5
-      serviceAccount: elasticsearch-operator
+        resources:
+          requests:
+            memory: 128Mi
+            cpu: 100m
+          limits:
+            memory: 128Mi
+            cpu: 100m
+      serviceAccountName: elasticsearch-operator
