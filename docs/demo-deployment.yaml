@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch-operator
+  namespace: logging
+spec:
+  replicas: 1
+  template:
+    metadata:
+      name: elasticsearch-operator
+      namespace: logging
+      labels:
+        app: elasticsearch-operator
+    spec:
+      containers:
+      - name: elasticsearch-operator
+        image: upmcenterprises/elasticsearch-operator:0.2.0
+        imagePullPolicy: Always
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        ports:
+        - name: http
+          containerPort: 8000
+        livenessProbe:
+          httpGet:
+            path: /live
+            port: 8000
+          initialDelaySeconds: 10
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8000
+          initialDelaySeconds: 10
+          timeoutSeconds: 5
+      serviceAccount: elasticsearch-operator
