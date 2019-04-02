@@ -6,3 +6,5 @@ https://akomljen.com/get-kubernetes-logs-with-efk-stack-in-5-minutes/
 https://github.com/kubernetes/kubernetes/tree/master/cluster/addons/fluentd-elasticsearch
 
 https://www.jianshu.com/p/1000ae80a493
+
+https://github.com/fluent/fluent-bit-kubernetes-logging
