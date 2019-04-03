@@ -45,12 +45,16 @@ spec:
   updateStrategy:
     type: RollingUpdate
   selector:
-    matchLabels:
-      app: fluent-bit
+    matchExpressions:
+    - key: app
+      operator: In
+      values:
+      - fluent-bit
   template:
     metadata:
       labels:
         app: fluent-bit
+        version: v1
     spec:
       # 是否使用主机网络,默认为false;如果为true,则表示容器使用宿主机网络,不再使用docker网桥,pod无法再同一宿主机有2个副本
       hostNetwork: false
@@ -78,7 +82,7 @@ spec:
           mountPath: /fluent-bit/etc/fluent-bit-service.conf
           subPath: fluent-bit-service.conf
         - name: config
-          mountPaht: /fluent-bit/etc/fluent-bit-input.conf
+          mountPath: /fluent-bit/etc/fluent-bit-input.conf
           subPath: fluent-bit-input.conf
         - name: config
           mountPath: /fluent-bit/etc/fluent-bit-filter.conf
