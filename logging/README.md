@@ -6,12 +6,12 @@
 
 ### 3.1.2 fluent-bit的工作流程
 ![blockchain](https://github.com/solomonlinux/kubernetes_cluster/blob/master/images/fluent-bit-workflow.png "fluent-bit工作流")
-1.INPUT: 读取原始日志,input插件有许多,最常见的就是读磁盘上的文件
-2.PARSER: 将原始日志格式化为结构日志
-3.FILTER: 对结构化日志进行处理
-4.BUFFER: 来自FILTER的日志在输出值OUTPUT之前需要在BUFFER中缓冲一下,比如打包发送
-5.ROUTING: INPUT时可以对日志打tag(比如kube.*),然后OUTPUT的时候可以Match匹配对应tag,Match支持通配
-6.OUTPUT: 将日志发送至某个位置,如ES，kafka
+1. INPUT: 读取原始日志,input插件有许多,最常见的就是读磁盘上的文件
+2. PARSER: 将原始日志格式化为结构日志
+3. FILTER: 对结构化日志进行处理
+4. BUFFER: 来自FILTER的日志在输出值OUTPUT之前需要在BUFFER中缓冲一下,比如打包发送
+5. ROUTING: INPUT时可以对日志打tag(比如kube.*),然后OUTPUT的时候可以Match匹配对应tag,Match支持通配
+6. OUTPUT: 将日志发送至某个位置,如ES，kafka
 
 
 
