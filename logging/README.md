@@ -13,7 +13,9 @@
 5. ROUTING: INPUT时可以对日志打tag(比如kube.*),然后OUTPUT的时候可以Match匹配对应tag,Match支持通配
 6. OUTPUT: 将日志发送至某个位置,如ES，kafka
 
-
+### 3.1.3 fluent-bit reference
+* 官方文档: https://docs.fluentbit.io/manual/
+* 示例仓库: https://github.com/fluent/fluent-bit-kubernetes-logging
 
 
 
