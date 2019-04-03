@@ -6,33 +6,39 @@ metadata:
   labels:
     app: fluent-bit
 data:
-  # Configuration files: server, input, filters and output
-  # ======================================================
   fluent-bit-service.conf: |-
     [SERVICE]
+        # 刷新间隔,buffer里的数据每隔1S写到output插件里,也就是写到elasticsearch里
         Flush         1
+        # fluent-bit的日志级别
         Log_Level     info
+        # fluent-bit能否运行为守护进程,也就是说能不能工作在后台
         Daemon        off
+        # 格式化日志为标准的json格式
         Parsers_File  parsers.conf
         HTTP_Server   On
         HTTP_Listen   0.0.0.0
         HTTP_Port     2020
-    @INCLUDE input-kubernetes.conf
-    @INCLUDE filter-kubernetes.conf
-    @INCLUDE output-elasticsearch.conf
 
-  input-kubernetes.conf: |-
+  fluent-bit-input.conf: |-
     [INPUT]
+        # 指定input插件的类型为tail,也就是扫描文件增量
         Name              tail
+        # 给采集到的日志打个标签,如var.log.containers.xxx会被替换为kube.log.containers.xxx
         Tag               kube.*
+        # 指定要抓取的文件
         Path              /var/log/containers/*.log
         Parser            docker
+        # 记录哪个文件采集到哪一行了
         DB                /var/log/flb_kube.db
+        # 一旦buffer里的数据超过5MB,tail就会停止采集数据,直至buffer中的数据被flush至output插件
         Mem_Buf_Limit     5MB
+        # 跳过太长的行,默认是32K,有其它参数可以配置这个大小
         Skip_Long_Lines   On
+        # 定时扫描磁盘上的新文件的间隔,这里是10S
         Refresh_Interval  10
 
-  filter-kubernetes.conf: |-
+  fluent-bit-filter.conf: |-
     [FILTER]
         Name                kubernetes
         Match               kube.*
@@ -40,15 +46,21 @@ data:
         Merge_Log           On
         K8S-Logging.Parser  On
 
-  output-elasticsearch.conf: |-
+  fluent-bit-output.conf: |-
     [OUTPUT]
         Name            es
         Match           *
-        Host            ${FLUENT_ELASTICSEARCH_HOST}
-        Port            ${FLUENT_ELASTICSEARCH_PORT}
+        Host            ${ELASTICSEARCH_HOST}
+        Port            ${ELASTICSEARCH_PORT}
         Logstash_Format On
         Replace_Dots    On
         Retry_Limit     False
+
+  fluent-bit.conf: |-
+    @INCLUDE fluent-bit-service.conf
+    @INCLUDE fluent-bit-input.conf
+    @INCLUDE fluent-bit-filter.conf
+    @INCLUDE fluent-bit-output.conf
 
   parsers.conf: |-
     [PARSER]
