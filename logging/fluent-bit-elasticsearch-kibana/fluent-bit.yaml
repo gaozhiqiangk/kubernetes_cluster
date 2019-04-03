@@ -55,20 +55,39 @@ spec:
       labels:
         app: fluent-bit
         version: v1
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "2020"
+        prometheus.io/path: /api/v1/metrics/prometheus
     spec:
       # 是否使用主机网络,默认为false;如果为true,则表示容器使用宿主机网络,不再使用docker网桥,pod无法再同一宿主机有2个副本
       hostNetwork: false
       # 设置pod的DNS策略,默认为ClusterFirst;有效值有ClusterFirstWithHostNet,ClusterFirst,Default(None)
       dnsPolicy: ClusterFirst
       serviceAccountName: fluent-bit
+      tolerations:
+      - key: node-role.kubernetes.io/master
+        operator: Exists
+        effect: NoSchedule
+      - operator: Exists
+        effect: NoExecute
+      - operator: Exists
+        effect: NoSchedule
       containers:
       - name: fluent-bit
         image: fluent/fluent-bit:1.0.4
-        imagePullPolicy: Always
+        imagePullPolicy: IfNotPresent
         env:
-          []
+        - name: ELASTICSEARCH_HOST
+          value: "elasticsearch"
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
         resources:
-          {}
+          requests:
+            memory: 100Mi
+            cpu: 100m
+          limits:
+            memory: 100Mi
         volumeMounts:
         - name: varlog
           mountPath: /var/log
