@@ -1,3 +1,15 @@
+# 日志系统文档
+
+## fluent-bit
+![blockchain](https://github.com/solomonlinux/kubernetes_cluster/blob/master/images/fluentd-bit-workflow.png "fluent-bit工作流")
+
+![blockchain](https://github.com/solomonlinux/kubernetes_cluster/blob/master/images/fluentd-fluent-bit.png "fluent-bit工作流")
+
+
+
+
+
+
 # REFERENCE
 https://github.com/upmc-enterprises/elasticsearch-operator
 
