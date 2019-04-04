@@ -17,7 +17,15 @@
 * 官方文档: https://docs.fluentbit.io/manual/
 * 示例仓库: https://github.com/fluent/fluent-bit-kubernetes-logging
 
+## 3.2 elasticsearch
 
+参考:
+* https://github.com/helm/charts/tree/master/stable/elasticsearch
+
+## 3.3 kibana
+
+参考:
+* https://github.com/helm/charts/tree/master/stable/kibana
 
 
 # REFERENCE
