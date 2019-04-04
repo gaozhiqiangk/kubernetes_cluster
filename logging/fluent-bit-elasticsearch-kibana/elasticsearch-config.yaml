@@ -1,0 +1,46 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: logging
+  labels:
+    app: elasticsearch
+data:
+  elasticsearch.yml: |-
+    cluster.name: elasticsearch
+
+    node.data: ${NODE_DATA:true}
+    node.master: ${NODE_MASTER:true}
+    node.ingest: ${NODE_INGEST:true}
+    node.name: ${HOSTNAME}
+
+    network.host: 0.0.0.0
+    bootstrap.memory_lock: ${BOOTSTRAP_MEMORY_LOCK:false}
+
+    dicovery:
+      zen:
+        ping.unicast.hosts: ${DISCOVERY_SERVICE:}
+        minimum_master_nodes: ${MINIMUM_MASTER_NODES:2}
+
+    processors: ${PROCESSORS:}
+
+    gateway.expected_master_nodes: ${EXPECTED_MASTER_NODES:2}
+    gateway.expected_data_nodes: ${EXPECTED_DATA_NODES:1}
+    gateway.recover_after_time: ${RECOVER_AFTER_TIME:5m}
+    gateway.recover_after_master_nodes: ${RECOVER_AFTER_MASTER_NODES:2}
+    gateway.recover_after_data_nodes: ${RECOVER_AFTER_DATA_NODES:1}
+
+  log4j2.properties: |-
+    status = error
+    appender.console.type = Console
+    appender.console.name = console
+    appender.console.layout.type = PatternLayout
+    appender.console.layout.pattern = [%d{ISO8601}][%-5p][%-25c{1.}] %marker%m%n
+    rootLogger.level = info
+    rootLogger.appenderRef.console.ref = console
+    logger.searchguard.name = com.floragunn
+    logger.searchgrard.level = info
+
+  pre-stop-hook.sh: |-
+
+  post-start-hook.sh: |-

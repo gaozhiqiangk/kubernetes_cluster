@@ -174,6 +174,138 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  name: elasticsearch-master
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: master
+spec:
+  serviceName: elasticserch-master
+  replicas: 3
+  selector:
+    matchExpressions:
+    - key: app
+      operator: In
+      values:
+      - elasticsearch
+    - key: component
+      operator: In
+      value:
+      - master
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+        component: master
+        version: v1
+    spec:
+      serviceAccountName: elasticsearch-master
+      securityContext:
+        fsGroup: 1000
+      affinity:
+        podAffinityTerm:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  value: elasticsearch
+                - key: component
+                  operator: In
+                  value: data
+              namespaces: logging
+              topologyKey: kubernetes.io/hostname
+            weight: 1
+      initContainers:
+      - name: sysctl
+        image: busybox:latest
+        imagePullPolicy: Always
+        resources:
+          {}
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+      - name: chown
+        image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.7.0
+        imagePullPolicy: IfNotPresent
+        resources:
+          {}
+        command:
+        - /bin/bash
+        - -c
+        - >
+          set -e;
+          set -x;
+          chown elasticsearch:elasticsearch /usr/share/elasticsearch/data;
+          for datadir in $(find /usr/share/elasticsearch/data -mindepth 1 -maxdepth 1 -not -name ".snapshot"); do
+            chown -R elasticsearch:elasticsearch $datadir;
+          done;
+          for logfile in $(find /usr/share/elasticsearch/logs -mindepth 1 -maxdepth 1 -not -name ".snapshot"); do
+            chown -R elasticsearch:elasticsearch $logfile;
+          done
+        secruityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: transport
+          containerPort: 9300
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        - name: config
+          mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+          subPath: elasticsearch.yml
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 25m
+          limits:
+            cpu: 1
+        readinessProbe:
+          httpGet:
+            path: /_cluster/health?local=true
+            port: 9200
+          initialDelaySeconds: 5
+        env:
+        - name: NODE_DATA
+          value: false
+        - name: DISCOVERY_SERVICE
+          value: elasticsearch-discovery
+        - name: PROCESSORS
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.cpu
+        - name: ES_JAVA_OPTS
+          value: "-Djava.net.preferIPv4Stack=true -Xms512m -Xmx512m "
+        - name: MINIMUM_MASTER_NODES
+          value: 2
+      volumes:
+      - name: config
+        configMap:
+          name: elasticsearch-config
+  updateStrategy:
+    type: OnDelete
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      namespace: logging
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 4Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
   name: elasticsearch-data
   namespace: logging
   labels:
@@ -182,6 +314,16 @@ metadata:
 spec:
   serviceName: elasticsearch-data
   replicas: 2
+  selector:
+    matchExpressions:
+    - key: app
+      operator: In
+      values:
+      - elasticsearch
+    - key: component
+      operator: In
+      value:
+      - data
   template:
     metadata:
       labels:
@@ -228,3 +370,86 @@ spec:
         - /bin/bash
         - c
         - >
+          set -e;
+          set -x;
+          chown elasticsearch:elasticsearch /usr/share/elasticsearch/data;
+          for datadir in $(find /usr/share/elasticsearch/data -mindepth 1 -maxdepth 1 -not -name ".snapshot"); do
+            chown -R elasticsearch:elasticsearch $datadir;
+          done;
+          for logfile in $(find /usr/share/elasticsearch/logs -mindepth 1 -maxdepth 1 -not -name ".snapshot"); do
+            chown -R elasticsearch:elasticsearch $logfile;
+          done
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /usr/share/elasticsearch/data
+          name: data
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: transport
+          containerPort: 9300
+        resources:
+          requests:
+            memory: 1536Mi
+            cpu: 25m
+          limits:
+            cpu: 1
+        readinessProbe:
+          httpGet:
+            path: /_cluster/health?local=true
+            port: 9200
+          initialDelaySeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        - name: config
+          mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+          subPath: elasticsearch.yml
+        - name: config
+          mountPath: /pre-stop-hook.sh
+          subPath: pre-stop-hook.sh
+        - name: config
+          mountPath: /post-start-hook.sh
+          subPath: post-start-hook.sh
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/bash", "/pre-stop-hook.sh"]
+          postStart:
+            exec:
+              command: ["/bin/bash", "/post-start-hook.sh"]
+        terminationGracePeriodSeconds: 3600
+        volumes:
+        - name: config
+          configMap:
+            name: elasticsearch-config
+        env:
+        - name: DISCOVERY_SERVICE
+          value: elasticsearch-discovery
+        - name: NODE_MASTER
+          value: false
+        - name: PROCESSORS
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.cpu
+        - name: ES_JAVA_OPTS
+          value: "-Djava.net.preferIPv4Stack=true -Xms1536m -Xmx1536m "
+        - name: MINIMUM_MASTER_NODES
+          value: 2
+  updateStrategy:
+    type: OnDelete
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      namespace: logging
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          storage: 30Gi
+---
+apiVersion: apps/v1
