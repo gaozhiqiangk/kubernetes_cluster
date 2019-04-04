@@ -7,6 +7,12 @@ metadata:
     app: kibana
 data:
   kibana.yml: |-
-    elasticsearch.url: http://elasticsearch:9200
-    server.host: "0"
+    # kibana-docker的默认配置
     server.name: kibana
+    server.host: "0"
+    elasticsearch.url: http://elasticsearch:9200
+
+    # 自定义配置
+    server.port: 5601
+    logging.verbose: true
+    server.defaultRoute: /app/kibana

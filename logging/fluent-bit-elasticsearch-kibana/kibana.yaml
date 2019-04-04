@@ -1,50 +1,3 @@
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: kibana
-  namespace: logging
-  labels:
-    app: kibana
-spec:
-  revisionHistoryLimit: 3
-  replicas: 1
-  selector:
-    matchLabels:
-      app: kibana
-  template:
-    metadata:
-      labels:
-        app: kibana
-    spec:
-      containers:
-      - name: kibana
-        image: docker.elastic.co/kibana/kibana-oss:6.4.2
-        imagePullPolicy: IfNotPresent
-        env:
-        - name: ELASTICSEARCH_URL
-          value: http://elasticsearch-cluster:9200
-        - name: LOGGING_VERBOSE
-          value: true
-        - name: SERVER_PORT
-          value: 5601
-        ports:
-        - name: kibana
-          containerPort: 5601
-          protocol: TCP
-        resources:
-          requests:
-            cpu: 100m
-          limits:
-            cpu: 1000m
-        volumeMounts:
-        - name: config
-          mountPath: /usr/share/kibana/config/kibana.yml
-          subPath: kibana.yml
-     volumes:
-     - name: config
-       configMap:
-         name: kibana-config
----
 apiVersion: v1
 kind: Service
 metadata:
@@ -58,8 +11,91 @@ spec:
   type: ClusterIP
   ports:
   - name: tcp
-    # port 5601
+    # 外部端口(port)就是宿主机端口,通常与pod端口(targetPort)一致
     port: 443
+    # Pod的端口
     targetPort: 5601
     protocol: TCP
 ---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kibana
+  namespace: logging
+  labels:
+    app: kibana
+spec:
+  replicas: 1
+  revisionHistoryLimit: 3
+  selector:
+    matchExpressions:
+    - key: app
+      operator: In
+      value:
+      - kibana
+  template:
+    metadata:
+      labels:
+        app: kibana
+        version: v1
+    spec:
+      serviceAccountName: default
+      affinity:
+        podAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - elasticsearch-client
+              namespace:
+              - logging
+              topologyKey: kubernetes.io/hostname
+            weight: 1
+      containers:
+      - name: kibana
+        image: docker.elastic.co/kibana/kibana-oss:6.7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: kibana
+          containerPort: 5601
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: /status
+            port: 5601
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+          periodSeconds: 10
+          successThreshold: 5
+        livenessProbe:
+          httpGet: /status
+          port: 5601
+          initialDelaySeconds: 30
+          timeoutSeconds: 10
+        resources:
+          requests:
+            memory: 300Mi
+            cpu: 100m
+          limits:
+            memory: 300Mi
+            cpu: 1000m
+        volumeMounts:
+        - name: config
+          mountPath: /usr/share/kibana/config/kibana.yml
+          subPath: kibana.yml
+        env:
+        - name: ELASTICSEARCH_URL
+          value: http://elasticsearch-client:9200
+        - name: SERVER_PORT
+          value: 5601
+        - name: LOGGING_VERBOSE
+          value: true
+        - name: SERVER_DEFAULTROUTE
+          value: /app/kibana
+     volumes:
+     - name: config
+       configMap:
+         name: kibana-config
