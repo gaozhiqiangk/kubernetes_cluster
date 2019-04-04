@@ -1,0 +1,230 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elasticsearch-client
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: client
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elasticsearch-master
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: master
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elasticsearch-client
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: client
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: client
+spec:
+  selector:
+    app: elasticsearch
+    conponent: client
+  type: ClusterIP
+  ports:
+  - name: http
+    # 服务监听的端口号
+    port: 9200
+    # 转发到后端Pod所舰艇的端口号
+    targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-discovery
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: master
+spec:
+  selector:
+    app: elasticsearch
+    component: master
+  type: None
+  ports:
+  - port: 9300
+    targetPort: transport
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch-client
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: client
+spec:
+  selector:
+    matchExpressions
+    - key: app
+      operator: In
+      value: elasticsearch
+    - key: component
+      operator: In
+      value: client
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+        component: client
+        version: v1
+    spec:
+      serviceAccountName: elasticsearch-client
+      #  
+      securityContext:
+        fsGroup: 1000
+      affinity:
+        # pod的反亲和性调度,之所以为了实现反亲和是因为我们希望elasticsearch-client pod运行在不同的节点,这也是为了实现高可用
+        podAntiAffinity:
+          # 软亲和性调度
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              # 标签选择器
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  value: elasticsearch
+                - key: component
+                  operator: In
+                  value: client
+              # pod与pod之间反亲和,那么pod与那个名称空间的pod反亲和
+              namespaces: logging
+              # 位置拓扑的键
+              topologyKey: kubernetes.io/hostname
+            weight: 1
+      initContainers:
+      - name: sysctl
+        image: busybox:latest
+        imagePullPolicy: Always
+        resources:
+          {}
+        # 在其它资源可用的前提下,单个JVM进程能够开启的最大线程数为vm.max_map_count/2
+        # 默认vm.max_map_count为65535,因此能够开启的最大线程数为3万左右
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          containerPort: 9200
+        - name: transport
+          containerPort: 9300
+        volumeMounts:
+        - name: config
+          mountPath: /usr/share/elasticsearch/config/elasticsearch.yaml
+          subPath: elasticsearch.yaml
+        env:
+        - name: NODE_MASTER
+          value: false
+        - name: NODE_DATA
+          value: false
+        - name: DISCOVERY_SERVICE
+          value: elasticsearch-discovery
+        - name: PROCESSORS
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.cpu
+        - name: ES_JAVA_OPTS
+          value: "-Djava.net.preferIPv4Stack=true -Xms512m -Xmx512m "
+        - name: minimum_master_nodes
+          value: 2
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 25m
+          limits:
+            cpu: 1
+        readinessProbe:
+          httpGet:
+            path: /_cluster/health
+            port: 9200
+          initialDelaySeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /_cluster/health?local=true
+            port: 9200
+          initialDelaySeconds: 90
+      volumes:
+      - name: config
+        configMap:
+          name: elasticsearch-config 
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch-data
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: data
+spec:
+  serviceName: elasticsearch-data
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+        component: data
+        version: v1
+    spec:
+      serviceAccountName: elasticsearch-data
+      securityContext:
+        fsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              # 标签选择器
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  value: elasticsearch
+                - key: component
+                  operator: In
+                  value: data
+              # pod与pod之间反亲和,那么pod与那个名称空间的pod反亲和
+              namespaces: logging
+              # 位置拓扑的键
+              topologyKey: kubernetes.io/hostname
+            weight: 1
+      initContainers:
+      - name: sysctl
+        image: busybox:latest
+        imagePullPolicy: Always
+        resources:
+          {}
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+      - name: chown
+        image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.7.0
+        imagePullPolicy: IfNotPresent
+        resources:
+          {}
+        command:
+        - /bin/bash
+        - c
+        - >
