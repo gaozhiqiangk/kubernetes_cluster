@@ -1,0 +1,144 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fluent-bit-config
+  namespace: logging
+  labels:
+    app: fluent-bit
+data:
+  fluent-bit-service.conf: |-
+    [SERVICE]
+        # 刷新间隔,buffer里的数据每隔1S写到output插件里,也就是写到elasticsearch里
+        Flush         1
+        # fluent-bit的日志级别
+        Log_Level     info
+        # fluent-bit能否运行为守护进程,也就是说能不能工作在后台
+        Daemon        off
+        # 格式化日志为标准的json格式
+        Parsers_File  parsers.conf
+        HTTP_Server   On
+        HTTP_Listen   0.0.0.0
+        HTTP_Port     2020
+
+  fluent-bit-input.conf: |-
+    [INPUT]
+        # 指定input插件的类型为tail,也就是扫描文件增量
+        Name              tail
+        # 给采集到的日志打个标签,如var.log.containers.xxx会被替换为kube.log.containers.xxx
+        Tag               kube.*
+        # 指定要抓取的文件
+        Path              /var/log/containers/*.log
+        Parser            docker
+        # 记录哪个文件采集到哪一行了
+        DB                /var/log/flb_kube.db
+        # 一旦buffer里的数据超过5MB,tail就会停止采集数据,直至buffer中的数据被flush至output插件
+        Mem_Buf_Limit     5MB
+        # 跳过太长的行,默认是32K,有其它参数可以配置这个大小
+        Skip_Long_Lines   On
+        # 定时扫描磁盘上的新文件的间隔,这里是10S
+        Refresh_Interval  10
+
+  fluent-bit-filter.conf: |-
+    [FILTER]
+        # 指定filter插件的类型为kubernetes,因为input时打了kube.*的tag，所以就会匹配到kubernetes的filter
+        Name                kubernetes
+        # parser得到的键值数据会经过filter,filter会根据tag机制去匹配日志,因为input时打了kube.*的tag，所以就会匹配到kubernetes的filter
+        Match               kube.*
+        # input阶段生成time,stream,log三个k-v;经过filter会追加k8s字段,最终存储至ES中,因此要访问apiserver
+        # Kube_URL            https://kubernetes.default.svc:443
+        Kube_URL            https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT_HTTPS}
+        # fluent-bit pod访问apiserver使用serviceaccount身份,它会加载默认的证书和token
+        Kube_CA_File        /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+        Kube_Token_File     /var/run/secrets/kubernetes.io/serviceaccount/token
+        # merge_log会检查指定的字段,如果字段是一个json map,就会把内部字段提到外部k-v中,这对ES来说就会出现动态mapping问题
+        # 也许不同的容器输出的同名字段类型不同,导致ES存储日志失败,建议off掉
+        Merge_Log           On
+        K8S-Logging.Parser  On
+        K8S-Logging.Exclude On
+
+  fluent-bit-output.conf: |-
+    [OUTPUT]
+        # 指定我们要output时使用的插件,也就是输出到kafka
+        Name           kafka
+        # match所有的tag,也可以是kube.*
+        Match          *
+        Brokers        bootstrap.kafka:9092
+        Topics         ops.kube-logs-fluentbit.stream.json.001
+        Timestamp_Key  @timestamp
+        Retry_Limit    false
+        # hides errors "Receive failed: Disconnected" when kafka kills idle connections
+        rdkafka.log.connection.close false
+        # producer buffer is not included in http://fluentbit.io/documentation/0.12/configuration/memory_usage.html#estimating
+        rdkafka.queue.buffering.max.kbytes 10240
+        # for logs you'll probably want this ot be 0 or 1, not more
+        rdkafka.request.required.acks 1
+#################################################
+    [OUTPUT]
+        Name            kafka-rest
+        Match           *
+        Host            ${KAFKA_REST_HOST}
+        Port            ${KAFKA_REST_PORT}
+        Time_Key        @timestamp
+        Tag_Key         _fluent-tag
+        Include_Tag_Key On
+        Tag_Key         My_Tag_Key
+        Topic           ${KAFKA_TOPIC}
+        # Partition     0
+        # Message_Key abc
+################################################
+
+  fluent-bit.conf: |-
+    @INCLUDE fluent-bit-service.conf
+    @INCLUDE fluent-bit-input.conf
+    @INCLUDE fluent-bit-filter.conf
+    @INCLUDE fluent-bit-output.conf
+
+  parsers.conf: |-
+    [PARSER]
+        Name   apache
+        Format regex
+        Regex  ^(?<host>[^ ]*) [^ ]* (?<user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +(?<path>[^\"]*?)(?: +\S*)?)?" (?<code>[^ ]*) (?<size>[^ ]*)(?: "(?<referer>[^\"]*)" "(?<agent>[^\"]*)")?$
+        Time_Key time
+        Time_Format %d/%b/%Y:%H:%M:%S %z
+
+    [PARSER]
+        Name   apache2
+        Format regex
+        Regex  ^(?<host>[^ ]*) [^ ]* (?<user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +(?<path>[^ ]*) +\S*)?" (?<code>[^ ]*) (?<size>[^ ]*)(?: "(?<referer>[^\"]*)" "(?<agent>[^\"]*)")?$
+        Time_Key time
+        Time_Format %d/%b/%Y:%H:%M:%S %z
+
+    [PARSER]
+        Name   apache_error
+        Format regex
+        Regex  ^\[[^ ]* (?<time>[^\]]*)\] \[(?<level>[^\]]*)\](?: \[pid (?<pid>[^\]]*)\])?( \[client (?<client>[^\]]*)\])? (?<message>.*)$
+
+    [PARSER]
+        Name   nginx
+        Format regex
+        Regex ^(?<remote>[^ ]*) (?<host>[^ ]*) (?<user>[^ ]*) \[(?<time>[^\]]*)\] "(?<method>\S+)(?: +(?<path>[^\"]*?)(?: +\S*)?)?" (?<code>[^ ]*) (?<size>[^ ]*)(?: "(?<referer>[^\"]*)" "(?<agent>[^\"]*)")?$
+        Time_Key time
+        Time_Format %d/%b/%Y:%H:%M:%S %z
+
+    [PARSER]
+        Name   json
+        Format json
+        Time_Key time
+        Time_Format %d/%b/%Y:%H:%M:%S %z
+
+    [PARSER]
+        Name        docker
+        Format      json
+        Time_Key    time
+        Time_Format %Y-%m-%dT%H:%M:%S.%L
+        Time_Keep   On
+        # Command      |  Decoder | Field | Optional Action
+        # =============|==================|=================
+        Decode_Field_As   escaped    log
+
+    [PARSER]
+        Name        syslog
+        Format      regex
+        Regex       ^\<(?<pri>[0-9]+)\>(?<time>[^ ]* {1,2}[^ ]* [^ ]*) (?<host>[^ ]*) (?<ident>[a-zA-Z0-9_\/\.\-]*)(?:\[(?<pid>[0-9]+)\])?(?:[^\:]*\:)? *(?<message>.*)$
+        Time_Key    time
+        Time_Format %b %d %H:%M:%S
