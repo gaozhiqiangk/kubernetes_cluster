@@ -451,5 +451,3 @@ spec:
       resources:
         requests:
           storage: 30Gi
----
-apiVersion: apps/v1

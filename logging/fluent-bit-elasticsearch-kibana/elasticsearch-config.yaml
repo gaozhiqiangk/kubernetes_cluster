@@ -15,6 +15,7 @@ data:
     node.name: ${HOSTNAME}
 
     network.host: 0.0.0.0
+    # 看https://github.com/kubernetes/kubernetes/issues/3595
     bootstrap.memory_lock: ${BOOTSTRAP_MEMORY_LOCK:false}
 
     dicovery:
@@ -22,8 +23,10 @@ data:
         ping.unicast.hosts: ${DISCOVERY_SERVICE:}
         minimum_master_nodes: ${MINIMUM_MASTER_NODES:2}
 
+    # 看https://github.com/elastic/elasticsearch-definitive-guide/pull/679
     processors: ${PROCESSORS:}
 
+    # 避免两个master节点加上一个data节点的情况下发生脑裂
     gateway.expected_master_nodes: ${EXPECTED_MASTER_NODES:2}
     gateway.expected_data_nodes: ${EXPECTED_DATA_NODES:1}
     gateway.recover_after_time: ${RECOVER_AFTER_TIME:5m}
@@ -42,5 +45,37 @@ data:
     logger.searchgrard.level = info
 
   pre-stop-hook.sh: |-
+    #!/bin/bash
+    exec &> >(tee -a "/var/log/elasticsearch-hooks.log")
+    NODE_NAME=${HOSTNAME}
+    echo "Prepare to migrate data of the node ${NODE_NAME}"
+    echo "Move all data from node ${NODE_NAME}"
+    curl -s -XPUT -H 'Content-Type: application/json' 'elasticsearch-client:9200/_cluster/settings' -d " {
+      \"transient\" :{
+          \"cluster.routing.allocation.exclude._name\" : \"${NODE_NAME}\"
+      }
+    }"
+    echo ""
+
+    while true; do
+      echo -e "Wait for node ${NODE_NAME} to become empty"
+      SHARDS_ALLOCATION=$(curl -s -XGET 'http://elasticsearch-client:9200/_cat/shards')
+      if ! echo "${SHARDS_ALLOCATION}" | grep -E "${NODE_NAME}"; then
+        break
+      fi
+    done
+    echo "Node ${NODE_NAME} is ready to shutdown"
 
   post-start-hook.sh: |-
+    #!/bin/bash
+    exec &> >(tee -a "/var/log/elasticsearch-hook.log")
+    NODE_NAME=${HOSTNAME}
+    CLUSTER_SETTINGS=$(curl -s -XGET "http://elasticsearch-client:9200/_cluster/setting")
+    if echo "${CLUSTER_SETTINGS}" |get -E "${NODE_NAME}"; then
+      echo "Activate node ${NODE_NAME}"
+      curl -s -XPUT -H 'Content-Type: application/json' "http://elasticsearch-client:9200/_cluster/settings" -d "{
+        \"transient\" :{
+            \"cluster.routing.allocation.exclude._name\" : null
+        }
+      }"
+    fi
