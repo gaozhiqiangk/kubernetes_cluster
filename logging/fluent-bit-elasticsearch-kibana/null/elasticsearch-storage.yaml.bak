@@ -8,7 +8,7 @@ provisioner: kubernetes.io/host-path
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
-  name: elasticsearch
+  name: elasticsearch-pvc
   namespace: logging
 spec:
   accessModes:
@@ -16,4 +16,4 @@ spec:
   storageClassName: hostpath-storage
   resources:
     requests:
-      storage: 30Gi
+      storage: 1Gi

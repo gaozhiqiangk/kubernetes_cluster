@@ -325,6 +325,7 @@ spec:
     spec:
       accessModes:
       - ReadWriteOnce
+      storageClassName: ceph-rbd-storage
       resources:
         requests:
           storage: 4Gi
@@ -478,6 +479,8 @@ spec:
     spec:
       accessModes:
       - ReadWriteOnce
+      storageClassName: ceph-rbd-storage
       resources:
         requests:
-          storage: 30Gi
+          #storage: 30Gi
+          storage: 3Gi
