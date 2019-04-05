@@ -1,0 +1,114 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: elasticsearch-config
+  namespace: logging
+  labels:
+    app: elasticsearch
+data:
+  elasticsearch.yml: |-
+    # 配置参考: https://www.cnblogs.com/hanyouchun/p/5163183.html
+    # https://www.elastic.co/guide/cn/elasticsearch/guide/cn/_configuration_management.html
+    # https://www.elastic.co/guide/cn/elasticsearch/guide/current/dont-touch-these-settings.html
+    # 集群的名字
+    cluster.name: elasticsearch
+
+    # 指定该节点是否存储索引数据,默认为true
+    node.data: ${NODE_DATA:true}
+    # 指定该节点是否有资格被选举成为node(注意这里只是设置成有资格,不代表该node一定就是master)
+    # 默认值为true,es是默认集群中的第一台机器为master,如果这台机挂了就会重新选举master
+    node.master: ${NODE_MASTER:true}
+    # 有点Logstash的感觉
+    node.ingest: ${NODE_INGEST:true}
+    # 当前配置所在机器的节点名,你不设置就默认随机指定一个name列表中名字
+    node.name: ${HOSTNAME}
+
+    network.host: 0.0.0.0
+    # 看https://github.com/kubernetes/kubernetes/issues/3595
+    # 设置为true来锁住内存不进行swapping,因为当jvm开始swapping时es的效率会降低,所以要保证它不swap
+    # 可以把ES_MIN_MEM和ES_MAX_MEM两个环境变量设置成同一个值,并且保证机器有足够的内存分配给es;
+    # 同时也要允许elasticsearch的进程可以锁住内存,linux下启动es之前可以通过'ulimit -l unlimited'命令设置
+    bootstrap.memory_lock: ${BOOTSTRAP_MEMORY_LOCK:false}
+
+    dicovery:
+      zen:
+        # 设置集群中master节点的初始列表,可以通过这些节点来自动发现新加入集群的节点
+        # 这就是无头服务的用处
+        ping.unicast.hosts: ${DISCOVERY_SERVICE:}
+        # 设置这个参数来保证集群中的节点可以知道其它N个有master资格的节点;默认值为1,对于大的集群来说,可以设置大一点的值（2-4）
+        minimum_master_nodes: ${MINIMUM_MASTER_NODES:2}
+
+    # 看https://github.com/elastic/elasticsearch-definitive-guide/pull/679
+    # 我们使用CPU核心数的上限
+    processors: ${PROCESSORS:}
+
+    # 避免两个master节点加上一个data节点的情况下发生脑裂
+    # 我们期望的master节点的个数,这里最好3,5,7这样奇数个节点
+    gateway.expected_master_nodes: ${EXPECTED_MASTER_NODES:2}
+    # 我们期望的node节点的个数,这里没有限制,但是3个以上节点更好吧,因为分片要分为5分的话,2个节点真的有意思吗
+    gateway.expected_data_nodes: ${EXPECTED_DATA_NODES:1}
+    # 设置初始化恢复过程的超时时间
+    gateway.recover_after_time: ${RECOVER_AFTER_TIME:5m}
+    # 多少个master节点启动后恢复过程
+    gateway.recover_after_master_nodes: ${RECOVER_AFTER_MASTER_NODES:2}
+    # 多少个node节点启动后恢复过程
+    gateway.recover_after_data_nodes: ${RECOVER_AFTER_DATA_NODES:1}
+
+  log4j2.properties: |-
+    # 这个配置用于配置elasticsearch的日志
+    # 参考: https://github.com/13428282016/elasticsearch-CN/wiki/es-setup--elasticsearch
+    status = error
+    appender.console.type = Console
+    appender.console.name = console
+    appender.console.layout.type = PatternLayout
+    appender.console.layout.pattern = [%d{ISO8601}][%-5p][%-25c{1.}] %marker%m%n
+    rootLogger.level = info
+    rootLogger.appenderRef.console.ref = console
+    logger.searchguard.name = com.floragunn
+    logger.searchgrard.level = info
+
+  pre-stop-hook.sh: |-
+    #!/bin/bash
+    exec &> >(tee -a "/var/log/elasticsearch-hooks.log")
+    NODE_NAME=${HOSTNAME}
+    echo "Prepare to migrate data of the node ${NODE_NAME}"
+    echo "Move all data from node ${NODE_NAME}"
+    # curl命令的用法
+    # -s/--silent: 静音模式,不输出任何东西
+    # -X/--request <command>: 指定什么指令
+    # -H/--header <line>: 自定义头信息传递给服务器
+    # -d/--data <data>: HTTP POST方式传送的数据
+    # 这里的意思是在停止之前告诉elasticsearch-client:9200,调度时将这个master node/data node排除在外
+    curl -s -XPUT -H 'Content-Type: application/json' 'elasticsearch-client:9200/_cluster/settings' -d " {
+      \"transient\" :{
+          \"cluster.routing.allocation.exclude._name\" : \"${NODE_NAME}\"
+      }
+    }"
+    echo ""
+
+    # 这里一直在从elasticsearch-client:9200获取数据分片,一旦检测不到这个节点上的分片了,那么退出这个循环
+    # 也就是为了停止之前把这个节点上的数据迁移走再终止Pod;最后打印这个节点master node/data node关闭了
+    while true; do
+      echo -e "Wait for node ${NODE_NAME} to become empty"
+      SHARDS_ALLOCATION=$(curl -s -XGET 'http://elasticsearch-client:9200/_cat/shards')
+      if ! echo "${SHARDS_ALLOCATION}" | grep -E "${NODE_NAME}"; then
+        break
+      fi
+    done
+    echo "Node ${NODE_NAME} is ready to shutdown"
+
+  post-start-hook.sh: |-
+    #!/bin/bash
+    exec &> >(tee -a "/var/log/elasticsearch-hook.log")
+    NODE_NAME=${HOSTNAME}
+    # Pod启动后首先从elasticsearch-client:9200获取集群的一些设置,一旦发现有这个节点(master node/data node)有数据
+    # 那么就激活这个节点,并且向elasticsearch-client:9200发送一段数据,告诉它调度时排除的节点为null,也就是说我们把新加入的节点加入到集群
+    CLUSTER_SETTINGS=$(curl -s -XGET "http://elasticsearch-client:9200/_cluster/setting")
+    if echo "${CLUSTER_SETTINGS}" |get -E "${NODE_NAME}"; then
+      echo "Activate node ${NODE_NAME}"
+      curl -s -XPUT -H 'Content-Type: application/json' "http://elasticsearch-client:9200/_cluster/settings" -d "{
+        \"transient\" :{
+            \"cluster.routing.allocation.exclude._name\" : null
+        }
+      }"
+    fi

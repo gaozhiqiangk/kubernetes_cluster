@@ -1,0 +1,39 @@
+# https://kubernetes.io/docs/concepts/storage/storage-classes/#glusterfs
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  #name: slow
+  name: glusterfs-storage
+  namespace: logging
+provisioner: kubernetes.io/glusterfs
+parameters:
+  resturl: "http://127.0.0.1:8081"
+  clusterid: "630372ccdc720a92c681fb928f27b53f"
+  restauthenabled: "true"
+  restuser: "admin"
+  secretNamespace: "default"
+  secretName: "heketi-secret"
+  gidMin: "40000"
+  gidMax: "50000"
+  volumetype: "replicate:3"
+---
+# https://kubernetes.io/docs/concepts/storage/storage-classes/#ceph-rbd
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  #name: fast
+  name: ceph-rbd-storage
+  namespace: logging
+provisioner: kubernetes.io/rbd
+parameters:
+  monitors: 10.16.153.105:6789
+  adminId: kube
+  adminSecretName: ceph-secret
+  adminSecretNamespace: kube-system
+  pool: kube
+  userId: kube
+  userSecretName: ceph-secret-user
+  userSecretNamespace: default
+  fsType: ext4
+  imageFormat: "2"
+  imageFeatures: "layering"
