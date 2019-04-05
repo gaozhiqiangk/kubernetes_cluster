@@ -31,7 +31,7 @@ spec:
     matchExpressions:
     - key: app
       operator: In
-      value:
+      values:
       - kibana
   template:
     metadata:
@@ -50,7 +50,7 @@ spec:
                   operator: In
                   values:
                   - elasticsearch-client
-              namespace:
+              namespaces:
               - logging
               topologyKey: kubernetes.io/hostname
             weight: 1
@@ -71,8 +71,9 @@ spec:
           periodSeconds: 10
           successThreshold: 5
         livenessProbe:
-          httpGet: /status
-          port: 5601
+          httpGet:
+            path: /status
+            port: 5601
           initialDelaySeconds: 30
           timeoutSeconds: 10
         resources:
@@ -88,14 +89,14 @@ spec:
           subPath: kibana.yml
         env:
         - name: ELASTICSEARCH_URL
-          value: http://elasticsearch-client:9200
+          value: http://elasticsearch:9200
         - name: SERVER_PORT
-          value: 5601
+          value: "5601"
         - name: LOGGING_VERBOSE
-          value: true
+          value: "true"
         - name: SERVER_DEFAULTROUTE
           value: /app/kibana
-     volumes:
-     - name: config
-       configMap:
-         name: kibana-config
+      volumes:
+      - name: config
+        configMap:
+          name: kibana-config

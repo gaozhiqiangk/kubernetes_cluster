@@ -77,10 +77,12 @@ spec:
     matchExpressions:
     - key: app
       operator: In
-      value: elasticsearch
+      values:
+      - elasticsearch
     - key: component
       operator: In
-      value: client
+      values:
+      - client
   replicas: 2
   template:
     metadata:
@@ -105,12 +107,14 @@ spec:
                 matchExpressions:
                 - key: app
                   operator: In
-                  value: elasticsearch
+                  values:
+                  - elasticsearch
                 - key: component
                   operator: In
-                  value: client
+                  values:
+                  - client
               # pod与pod之间反亲和,那么pod与那个名称空间的pod反亲和
-              namespaces: logging
+              namespaces: ["logging"]
               # 位置拓扑的键
               topologyKey: kubernetes.io/hostname
             weight: 1
@@ -143,9 +147,9 @@ spec:
           subPath: elasticsearch.yaml
         env:
         - name: NODE_MASTER
-          value: false
+          value: "false"
         - name: NODE_DATA
-          value: false
+          value: "false"
         - name: DISCOVERY_SERVICE
           value: elasticsearch-discovery
         - name: PROCESSORS
@@ -155,7 +159,7 @@ spec:
         - name: ES_JAVA_OPTS
           value: "-Djava.net.preferIPv4Stack=true -Xms512m -Xmx512m "
         - name: MINIMUM_MASTER_NODES
-          value: 2
+          value: "2"
         resources:
           requests:
             memory: 512Mi
@@ -197,7 +201,7 @@ spec:
       - elasticsearch
     - key: component
       operator: In
-      value:
+      values:
       - master
   template:
     metadata:
@@ -217,11 +221,13 @@ spec:
                 matchExpressions:
                 - key: app
                   operator: In
-                  value: elasticsearch
+                  values:
+                  - elasticsearch
                 - key: component
                   operator: In
-                  value: master
-              namespaces: logging
+                  values:
+                  - master
+              namespaces: ["logging"]
               topologyKey: kubernetes.io/hostname
             weight: 1
       initContainers:
@@ -259,7 +265,7 @@ spec:
             chown -R elasticsearch:elasticsearch $logfile;
           done
         # container级别的安全上下文
-        secruityContext:
+        securityContext:
           # 以root用户身份运行
           runAsUser: 0
         volumeMounts:
@@ -291,7 +297,7 @@ spec:
           initialDelaySeconds: 5
         env:
         - name: NODE_DATA
-          value: false
+          value: "false"
         - name: DISCOVERY_SERVICE
           value: elasticsearch-discovery
         - name: PROCESSORS
@@ -301,7 +307,7 @@ spec:
         - name: ES_JAVA_OPTS
           value: "-Djava.net.preferIPv4Stack=true -Xms512m -Xmx512m "
         - name: MINIMUM_MASTER_NODES
-          value: 2
+          value: "2"
       volumes:
       - name: config
         configMap:
@@ -340,7 +346,7 @@ spec:
       - elasticsearch
     - key: component
       operator: In
-      value:
+      values:
       - data
   template:
     metadata:
@@ -361,12 +367,14 @@ spec:
                 matchExpressions:
                 - key: app
                   operator: In
-                  value: elasticsearch
+                  values:
+                  - elasticsearch
                 - key: component
                   operator: In
-                  value: data
+                  values:
+                  - data
               # pod与pod之间反亲和,那么pod与那个名称空间的pod反亲和
-              namespaces: logging
+              namespaces: ["logging"]
               # 位置拓扑的键
               topologyKey: kubernetes.io/hostname
             weight: 1
@@ -440,16 +448,11 @@ spec:
           postStart:
             exec:
               command: ["/bin/bash", "/post-start-hook.sh"]
-        terminationGracePeriodSeconds: 3600
-        volumes:
-        - name: config
-          configMap:
-            name: elasticsearch-config
         env:
         - name: DISCOVERY_SERVICE
           value: elasticsearch-discovery
         - name: NODE_MASTER
-          value: false
+          value: "false"
         - name: PROCESSORS
           valueFrom:
             resourceFieldRef:
@@ -457,7 +460,12 @@ spec:
         - name: ES_JAVA_OPTS
           value: "-Djava.net.preferIPv4Stack=true -Xms1536m -Xmx1536m "
         - name: MINIMUM_MASTER_NODES
-          value: 2
+          value: "2"
+      volumes:
+      - name: config
+        configMap:
+          name: elasticsearch-config
+      terminationGracePeriodSeconds: 3600
   updateStrategy:
     type: OnDelete
   volumeClaimTemplates:
