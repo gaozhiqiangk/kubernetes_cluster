@@ -19,11 +19,11 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: elasticsearch-client
+  name: elasticsearch-data
   namespace: logging
   labels:
     app: elasticsearch
-    component: client
+    component: data
 ---
 apiVersion: v1
 kind: Service
@@ -57,7 +57,9 @@ spec:
   selector:
     app: elasticsearch
     component: master
-  type: None
+  # kubectl run cirros-${RANDOM} -it --rm --image=cirros -n logging -- nslookup elasticsearch-discovery.svc.local.domain得到的是一堆pod的地址
+  # 这是为了配合有状态应用(statefulset)使用的
+  clusterIP: None
   ports:
   - port: 9300
     targetPort: transport
@@ -72,7 +74,7 @@ metadata:
     component: client
 spec:
   selector:
-    matchExpressions
+    matchExpressions:
     - key: app
       operator: In
       value: elasticsearch
@@ -88,8 +90,9 @@ spec:
         version: v1
     spec:
       serviceAccountName: elasticsearch-client
-      #  
+      # 用于设置pod级别的安全属性
       securityContext:
+        # volume FSGroup,能够允许kubelet修改volume的属主属组
         fsGroup: 1000
       affinity:
         # pod的反亲和性调度,之所以为了实现反亲和是因为我们希望elasticsearch-client pod运行在不同的节点,这也是为了实现高可用
@@ -120,7 +123,9 @@ spec:
         # 在其它资源可用的前提下,单个JVM进程能够开启的最大线程数为vm.max_map_count/2
         # 默认vm.max_map_count为65535,因此能够开启的最大线程数为3万左右
         command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        # 设置container级别的安全上下文
         securityContext:
+          # 以特权模式运行容器,特权容器中的进程本质上相当于主机的root,默认为false
           privileged: true
       containers:
       - name: elasticsearch
@@ -128,6 +133,7 @@ spec:
         imagePullPolicy: IfNotPresent
         ports:
         - name: http
+          # 容器端口,如-p <hostPort>:<containerPort>,就是将指定的容器端口映射至主机端口
           containerPort: 9200
         - name: transport
           containerPort: 9300
@@ -148,7 +154,7 @@ spec:
               resource: limits.cpu
         - name: ES_JAVA_OPTS
           value: "-Djava.net.preferIPv4Stack=true -Xms512m -Xmx512m "
-        - name: minimum_master_nodes
+        - name: MINIMUM_MASTER_NODES
           value: 2
         resources:
           requests:
@@ -180,6 +186,7 @@ metadata:
     app: elasticsearch
     component: master
 spec:
+  # 指定前面创建的service的名称
   serviceName: elasticserch-master
   replicas: 3
   selector:
@@ -203,7 +210,7 @@ spec:
       securityContext:
         fsGroup: 1000
       affinity:
-        podAffinityTerm:
+        podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
           - podAffinityTerm:
               labelSelector:
@@ -213,7 +220,7 @@ spec:
                   value: elasticsearch
                 - key: component
                   operator: In
-                  value: data
+                  value: master
               namespaces: logging
               topologyKey: kubernetes.io/hostname
             weight: 1
@@ -235,16 +242,25 @@ spec:
         - /bin/bash
         - -c
         - >
+          # bash任何语句执行错误就立即退出,防止错误越来越多
           set -e;
+          # 追踪代码的显示情况(set -x开启,set +x关闭)
           set -x;
+          # 修改数据的属主属组
           chown elasticsearch:elasticsearch /usr/share/elasticsearch/data;
+          # 搜索当前目录的第一层是普通文件,权限是644的文件删除
+          # find ./ -maxdepth 1 -type f -perm 644 | xargs rm -f
+          # 对下一级目录修改文件的属主属组,而且是递归的,主要是为了排除.snapshot(它是用于实现数据的备份和恢复的)
           for datadir in $(find /usr/share/elasticsearch/data -mindepth 1 -maxdepth 1 -not -name ".snapshot"); do
             chown -R elasticsearch:elasticsearch $datadir;
           done;
+          # 对日志修改文件的属主属组
           for logfile in $(find /usr/share/elasticsearch/logs -mindepth 1 -maxdepth 1 -not -name ".snapshot"); do
             chown -R elasticsearch:elasticsearch $logfile;
           done
+        # container级别的安全上下文
         secruityContext:
+          # 以root用户身份运行
           runAsUser: 0
         volumeMounts:
         - name: data
@@ -290,8 +306,10 @@ spec:
       - name: config
         configMap:
           name: elasticsearch-config
+  # pod的更新策略,有rollingUpdate还是删除之后再更新
   updateStrategy:
     type: OnDelete
+  # 定义卷模板
   volumeClaimTemplates:
   - metadata:
       name: data
@@ -414,6 +432,7 @@ spec:
         - name: config
           mountPath: /post-start-hook.sh
           subPath: post-start-hook.sh
+        # container的生命周期,停止前要执行什么命令,启动后要执行什么命令
         lifecycle:
           preStop:
             exec:
