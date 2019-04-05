@@ -7,33 +7,56 @@ metadata:
     app: elasticsearch
 data:
   elasticsearch.yml: |-
+    # 配置参考: https://www.cnblogs.com/hanyouchun/p/5163183.html
+    # https://www.elastic.co/guide/cn/elasticsearch/guide/cn/_configuration_management.html
+    # https://www.elastic.co/guide/cn/elasticsearch/guide/current/dont-touch-these-settings.html
+    # 集群的名字
     cluster.name: elasticsearch
 
+    # 指定该节点是否存储索引数据,默认为true
     node.data: ${NODE_DATA:true}
+    # 指定该节点是否有资格被选举成为node(注意这里只是设置成有资格,不代表该node一定就是master)
+    # 默认值为true,es是默认集群中的第一台机器为master,如果这台机挂了就会重新选举master
     node.master: ${NODE_MASTER:true}
+    # 有点Logstash的感觉
     node.ingest: ${NODE_INGEST:true}
+    # 当前配置所在机器的节点名,你不设置就默认随机指定一个name列表中名字
     node.name: ${HOSTNAME}
 
     network.host: 0.0.0.0
     # 看https://github.com/kubernetes/kubernetes/issues/3595
+    # 设置为true来锁住内存不进行swapping,因为当jvm开始swapping时es的效率会降低,所以要保证它不swap
+    # 可以把ES_MIN_MEM和ES_MAX_MEM两个环境变量设置成同一个值,并且保证机器有足够的内存分配给es;
+    # 同时也要允许elasticsearch的进程可以锁住内存,linux下启动es之前可以通过'ulimit -l unlimited'命令设置
     bootstrap.memory_lock: ${BOOTSTRAP_MEMORY_LOCK:false}
 
     dicovery:
       zen:
+        # 设置集群中master节点的初始列表,可以通过这些节点来自动发现新加入集群的节点
+        # 这就是无头服务的用处
         ping.unicast.hosts: ${DISCOVERY_SERVICE:}
+        # 设置这个参数来保证集群中的节点可以知道其它N个有master资格的节点;默认值为1,对于大的集群来说,可以设置大一点的值（2-4）
         minimum_master_nodes: ${MINIMUM_MASTER_NODES:2}
 
     # 看https://github.com/elastic/elasticsearch-definitive-guide/pull/679
+    # 我们使用CPU核心数的上限
     processors: ${PROCESSORS:}
 
     # 避免两个master节点加上一个data节点的情况下发生脑裂
+    # 我们期望的master节点的个数,这里最好3,5,7这样奇数个节点
     gateway.expected_master_nodes: ${EXPECTED_MASTER_NODES:2}
+    # 我们期望的node节点的个数,这里没有限制,但是3个以上节点更好吧,因为分片要分为5分的话,2个节点真的有意思吗
     gateway.expected_data_nodes: ${EXPECTED_DATA_NODES:1}
+    # 设置初始化恢复过程的超时时间
     gateway.recover_after_time: ${RECOVER_AFTER_TIME:5m}
+    # 多少个master节点启动后恢复过程
     gateway.recover_after_master_nodes: ${RECOVER_AFTER_MASTER_NODES:2}
+    # 多少个node节点启动后恢复过程
     gateway.recover_after_data_nodes: ${RECOVER_AFTER_DATA_NODES:1}
 
   log4j2.properties: |-
+    # 这个配置用于配置elasticsearch的日志
+    # 参考: https://github.com/13428282016/elasticsearch-CN/wiki/es-setup--elasticsearch
     status = error
     appender.console.type = Console
     appender.console.name = console
