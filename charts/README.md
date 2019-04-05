@@ -1,5 +1,6 @@
 # chart用法
 * 添加chart仓库
+
   $ helm repo add solomonlinux https://github.com/solomonlinux/kubernetes_cluster/tree/master/charts/solomonlinu
   $ helm fetch solomonlinux/kibana
   $ helm install --name kibana --namespace logging solomonlinux/kibana
