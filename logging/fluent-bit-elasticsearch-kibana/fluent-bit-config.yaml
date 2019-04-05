@@ -45,8 +45,8 @@ data:
         # parser得到的键值数据会经过filter,filter会根据tag机制去匹配日志,因为input时打了kube.*的tag，所以就会匹配到kubernetes的filter
         Match               kube.*
         # input阶段生成time,stream,log三个k-v;经过filter会追加k8s字段,最终存储至ES中,因此要访问apiserver
-        # Kube_URL            https://kubernetes.default.svc:443
-        Kube_URL            https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT_HTTPS}
+         Kube_URL            https://kubernetes.default.svc:443
+        #Kube_URL            https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT_HTTPS}
         # fluent-bit pod访问apiserver使用serviceaccount身份,它会加载默认的证书和token
         Kube_CA_File        /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
         Kube_Token_File     /var/run/secrets/kubernetes.io/serviceaccount/token
