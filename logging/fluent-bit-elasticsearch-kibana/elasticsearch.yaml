@@ -83,8 +83,8 @@ spec:
       operator: In
       values:
       - client
-  #replicas: 2
-  replicas: 1
+  replicas: 2
+  #replicas: 1
   template:
     metadata:
       labels:
@@ -193,8 +193,8 @@ metadata:
 spec:
   # 指定前面创建的service的名称
   serviceName: elasticserch-master
-  #replicas: 3
-  replicas: 1
+  replicas: 3
+  #replicas: 1
   selector:
     matchExpressions:
     - key: app
@@ -340,8 +340,8 @@ metadata:
     component: data
 spec:
   serviceName: elasticsearch-data
-  #replicas: 2
-  replicas: 1
+  replicas: 2
+  #replicas: 1
   selector:
     matchExpressions:
     - key: app
