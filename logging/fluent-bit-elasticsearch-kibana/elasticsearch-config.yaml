@@ -73,6 +73,12 @@ data:
     NODE_NAME=${HOSTNAME}
     echo "Prepare to migrate data of the node ${NODE_NAME}"
     echo "Move all data from node ${NODE_NAME}"
+    # curl命令的用法
+    # -s/--silent: 静音模式,不输出任何东西
+    # -X/--request <command>: 指定什么指令
+    # -H/--header <line>: 自定义头信息传递给服务器
+    # -d/--data <data>: HTTP POST方式传送的数据
+    # 这里的意思是在停止之前告诉elasticsearch-client:9200,调度时将这个master node/data node排除在外
     curl -s -XPUT -H 'Content-Type: application/json' 'elasticsearch-client:9200/_cluster/settings' -d " {
       \"transient\" :{
           \"cluster.routing.allocation.exclude._name\" : \"${NODE_NAME}\"
@@ -80,6 +86,8 @@ data:
     }"
     echo ""
 
+    # 这里一直在从elasticsearch-client:9200获取数据分片,一旦检测不到这个节点上的分片了,那么退出这个循环
+    # 也就是为了停止之前把这个节点上的数据迁移走再终止Pod;最后打印这个节点master node/data node关闭了
     while true; do
       echo -e "Wait for node ${NODE_NAME} to become empty"
       SHARDS_ALLOCATION=$(curl -s -XGET 'http://elasticsearch-client:9200/_cat/shards')
@@ -93,6 +101,8 @@ data:
     #!/bin/bash
     exec &> >(tee -a "/var/log/elasticsearch-hook.log")
     NODE_NAME=${HOSTNAME}
+    # Pod启动后首先从elasticsearch-client:9200获取集群的一些设置,一旦发现有这个节点(master node/data node)有数据
+    # 那么就激活这个节点,并且向elasticsearch-client:9200发送一段数据,告诉它调度时排除的节点为null,也就是说我们把新加入的节点加入到集群
     CLUSTER_SETTINGS=$(curl -s -XGET "http://elasticsearch-client:9200/_cluster/setting")
     if echo "${CLUSTER_SETTINGS}" |get -E "${NODE_NAME}"; then
       echo "Activate node ${NODE_NAME}"
