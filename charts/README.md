@@ -1,6 +1,7 @@
 ### chart用法
 * 添加chart仓库</br>
   $ helm repo add solomonlinux https://github.com/solomonlinux/kubernetes_cluster/tree/master/charts/solomonlinux</br>
+  $ helm repo add incubator http://storage.googleapis.com/kubernetes-charts-incubator</br>
   $ helm repo list</br>
   
 * 安装chart生成release</br>
