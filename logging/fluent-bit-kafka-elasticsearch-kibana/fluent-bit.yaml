@@ -75,32 +75,19 @@ spec:
         effect: NoSchedule
       containers:
       - name: fluent-bit
-        image: fluent/fluent-bit:1.0.4
+        image: fluent/fluent-bit:1.0.6
         imagePullPolicy: IfNotPresent
-        ports:
-        - containerPort: 2020
-        readinessProbe:
-          httpGet:
-            path: /api/v1/metrics/prometheus
-            port: 2020
-        livenessProbe
-          httpGet:
-            path: /
-            port: 2020
         env:
-        - name: KAFKA_HOST
-          value: "rest.kafka.svc.cluster.local"
-        - name: KAFKA_PORT
-          value: "80"
-        - name: KAFKA_TOPIC
-          value: fluent-bit
+        - name: ELASTICSEARCH_HOST
+          value: "elasticsearch"
+        - name: ELASTICSEARCH_PORT
+          value: "9200"
         resources:
           requests:
-            memory: 10Mi
-            cpu: 5m
+            memory: 100Mi
+            cpu: 100m
           limits:
-            memory: 60Mi
-            cpu: 50m
+            memory: 100Mi
         volumeMounts:
         - name: varlog
           mountPath: /var/log

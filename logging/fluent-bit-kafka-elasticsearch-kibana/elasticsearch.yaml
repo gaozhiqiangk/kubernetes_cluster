@@ -1,0 +1,486 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elasticsearch-client
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: client
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elasticsearch-master
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: master
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: elasticsearch-data
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: client
+spec:
+  selector:
+    app: elasticsearch
+    conponent: client
+  type: ClusterIP
+  ports:
+  - name: http
+    # 服务监听的端口号
+    port: 9200
+    # 转发到后端Pod所舰艇的端口号
+    targetPort: http
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: elasticsearch-discovery
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: master
+spec:
+  selector:
+    app: elasticsearch
+    component: master
+  # kubectl run cirros-${RANDOM} -it --rm --image=cirros -n logging -- nslookup elasticsearch-discovery.svc.local.domain得到的是一堆pod的地址
+  # 这是为了配合有状态应用(statefulset)使用的
+  clusterIP: None
+  ports:
+  - port: 9300
+    targetPort: transport
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: elasticsearch-client
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: client
+spec:
+  selector:
+    matchExpressions:
+    - key: app
+      operator: In
+      values:
+      - elasticsearch
+    - key: component
+      operator: In
+      values:
+      - client
+  replicas: 2
+  #replicas: 1
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+        component: client
+        version: v1
+    spec:
+      serviceAccountName: elasticsearch-client
+      # 用于设置pod级别的安全属性
+      securityContext:
+        # volume FSGroup,能够允许kubelet修改volume的属主属组
+        fsGroup: 1000
+      affinity:
+        # pod的反亲和性调度,之所以为了实现反亲和是因为我们希望elasticsearch-client pod运行在不同的节点,这也是为了实现高可用
+        podAntiAffinity:
+          # 软亲和性调度
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              # 标签选择器
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - elasticsearch
+                - key: component
+                  operator: In
+                  values:
+                  - client
+              # pod与pod之间反亲和,那么pod与那个名称空间的pod反亲和
+              namespaces: ["logging"]
+              # 位置拓扑的键
+              topologyKey: kubernetes.io/hostname
+            weight: 1
+      initContainers:
+      - name: sysctl
+        image: busybox:latest
+        imagePullPolicy: Always
+        resources:
+          {}
+        # 在其它资源可用的前提下,单个JVM进程能够开启的最大线程数为vm.max_map_count/2
+        # 默认vm.max_map_count为65535,因此能够开启的最大线程数为3万左右
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        # 设置container级别的安全上下文
+        securityContext:
+          # 以特权模式运行容器,特权容器中的进程本质上相当于主机的root,默认为false
+          privileged: true
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: http
+          # 容器端口,如-p <hostPort>:<containerPort>,就是将指定的容器端口映射至主机端口
+          containerPort: 9200
+        - name: transport
+          containerPort: 9300
+        volumeMounts:
+        - name: config
+          mountPath: /usr/share/elasticsearch/config/elasticsearch.yaml
+          subPath: elasticsearch.yaml
+        env:
+        - name: NODE_MASTER
+          value: "false"
+        - name: NODE_DATA
+          value: "false"
+        - name: DISCOVERY_SERVICE
+          value: elasticsearch-discovery
+        - name: PROCESSORS
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.cpu
+        - name: ES_JAVA_OPTS
+          value: "-Djava.net.preferIPv4Stack=true -Xms512m -Xmx512m "
+        - name: MINIMUM_MASTER_NODES
+          value: "2"
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 25m
+          limits:
+            cpu: 1
+        readinessProbe:
+          httpGet:
+            path: /_cluster/health
+            port: 9200
+          initialDelaySeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /_cluster/health?local=true
+            port: 9200
+          initialDelaySeconds: 90
+      volumes:
+      - name: config
+        configMap:
+          name: elasticsearch-config 
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch-master
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: master
+spec:
+  # 指定前面创建的service的名称
+  serviceName: elasticserch-master
+  replicas: 3
+  #replicas: 1
+  selector:
+    matchExpressions:
+    - key: app
+      operator: In
+      values:
+      - elasticsearch
+    - key: component
+      operator: In
+      values:
+      - master
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+        component: master
+        version: v1
+    spec:
+      serviceAccountName: elasticsearch-master
+      securityContext:
+        fsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - elasticsearch
+                - key: component
+                  operator: In
+                  values:
+                  - master
+              namespaces: ["logging"]
+              topologyKey: kubernetes.io/hostname
+            weight: 1
+      initContainers:
+      - name: sysctl
+        image: busybox:latest
+        imagePullPolicy: Always
+        resources:
+          {}
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+      - name: chown
+        image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.7.0
+        imagePullPolicy: IfNotPresent
+        resources:
+          {}
+        command:
+        - /bin/bash
+        - -c
+        - >
+          # bash任何语句执行错误就立即退出,防止错误越来越多
+          set -e;
+          # 追踪代码的显示情况(set -x开启,set +x关闭)
+          set -x;
+          # 修改数据的属主属组
+          chown elasticsearch:elasticsearch /usr/share/elasticsearch/data;
+          # 搜索当前目录的第一层是普通文件,权限是644的文件删除
+          # find ./ -maxdepth 1 -type f -perm 644 | xargs rm -f
+          # 对下一级目录修改文件的属主属组,而且是递归的,主要是为了排除.snapshot(它是用于实现数据的备份和恢复的)
+          for datadir in $(find /usr/share/elasticsearch/data -mindepth 1 -maxdepth 1 -not -name ".snapshot"); do
+            chown -R elasticsearch:elasticsearch $datadir;
+          done;
+          # 对日志修改文件的属主属组
+          for logfile in $(find /usr/share/elasticsearch/logs -mindepth 1 -maxdepth 1 -not -name ".snapshot"); do
+            chown -R elasticsearch:elasticsearch $logfile;
+          done
+        # container级别的安全上下文
+        securityContext:
+          # 以root用户身份运行
+          runAsUser: 0
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: transport
+          containerPort: 9300
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        - name: config
+          mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+          subPath: elasticsearch.yml
+        resources:
+          requests:
+            memory: 512Mi
+            cpu: 25m
+          limits:
+            cpu: 1
+        readinessProbe:
+          httpGet:
+            path: /_cluster/health?local=true
+            port: 9200
+          initialDelaySeconds: 5
+        env:
+        - name: NODE_DATA
+          value: "false"
+        - name: DISCOVERY_SERVICE
+          value: elasticsearch-discovery
+        - name: PROCESSORS
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.cpu
+        - name: ES_JAVA_OPTS
+          value: "-Djava.net.preferIPv4Stack=true -Xms512m -Xmx512m "
+        - name: MINIMUM_MASTER_NODES
+          value: "2"
+      volumes:
+      - name: config
+        configMap:
+          name: elasticsearch-config
+  # pod的更新策略,有rollingUpdate还是删除之后再更新
+  updateStrategy:
+    type: OnDelete
+  # 定义卷模板
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      namespace: logging
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: ceph-rbd-storage
+      resources:
+        requests:
+          storage: 4Gi
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: elasticsearch-data
+  namespace: logging
+  labels:
+    app: elasticsearch
+    component: data
+spec:
+  serviceName: elasticsearch-data
+  replicas: 2
+  #replicas: 1
+  selector:
+    matchExpressions:
+    - key: app
+      operator: In
+      values:
+      - elasticsearch
+    - key: component
+      operator: In
+      values:
+      - data
+  template:
+    metadata:
+      labels:
+        app: elasticsearch
+        component: data
+        version: v1
+    spec:
+      serviceAccountName: elasticsearch-data
+      securityContext:
+        fsGroup: 1000
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              # 标签选择器
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - elasticsearch
+                - key: component
+                  operator: In
+                  values:
+                  - data
+              # pod与pod之间反亲和,那么pod与那个名称空间的pod反亲和
+              namespaces: ["logging"]
+              # 位置拓扑的键
+              topologyKey: kubernetes.io/hostname
+            weight: 1
+      initContainers:
+      - name: sysctl
+        image: busybox:latest
+        imagePullPolicy: Always
+        resources:
+          {}
+        command: ["sysctl", "-w", "vm.max_map_count=262144"]
+        securityContext:
+          privileged: true
+      - name: chown
+        image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.7.0
+        imagePullPolicy: IfNotPresent
+        resources:
+          {}
+        command:
+        - /bin/bash
+        - c
+        - >
+          set -e;
+          set -x;
+          chown elasticsearch:elasticsearch /usr/share/elasticsearch/data;
+          for datadir in $(find /usr/share/elasticsearch/data -mindepth 1 -maxdepth 1 -not -name ".snapshot"); do
+            chown -R elasticsearch:elasticsearch $datadir;
+          done;
+          for logfile in $(find /usr/share/elasticsearch/logs -mindepth 1 -maxdepth 1 -not -name ".snapshot"); do
+            chown -R elasticsearch:elasticsearch $logfile;
+          done
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - mountPath: /usr/share/elasticsearch/data
+          name: data
+      containers:
+      - name: elasticsearch
+        image: docker.elastic.co/elasticsearch/elasticsearch-oss:6.7.0
+        imagePullPolicy: IfNotPresent
+        ports:
+        - name: transport
+          containerPort: 9300
+        resources:
+          requests:
+            memory: 1536Mi
+            cpu: 25m
+          limits:
+            cpu: 1
+        readinessProbe:
+          httpGet:
+            path: /_cluster/health?local=true
+            port: 9200
+          initialDelaySeconds: 5
+        volumeMounts:
+        - name: data
+          mountPath: /usr/share/elasticsearch/data
+        - name: config
+          mountPath: /usr/share/elasticsearch/config/elasticsearch.yml
+          subPath: elasticsearch.yml
+        - name: config
+          mountPath: /pre-stop-hook.sh
+          subPath: pre-stop-hook.sh
+        - name: config
+          mountPath: /post-start-hook.sh
+          subPath: post-start-hook.sh
+        # container的生命周期,停止前要执行什么命令,启动后要执行什么命令
+        lifecycle:
+          preStop:
+            exec:
+              command: ["/bin/bash", "/pre-stop-hook.sh"]
+          postStart:
+            exec:
+              command: ["/bin/bash", "/post-start-hook.sh"]
+        env:
+        - name: DISCOVERY_SERVICE
+          value: elasticsearch-discovery
+        - name: NODE_MASTER
+          value: "false"
+        - name: PROCESSORS
+          valueFrom:
+            resourceFieldRef:
+              resource: limits.cpu
+        - name: ES_JAVA_OPTS
+          value: "-Djava.net.preferIPv4Stack=true -Xms1536m -Xmx1536m "
+        - name: MINIMUM_MASTER_NODES
+          value: "2"
+      volumes:
+      - name: config
+        configMap:
+          name: elasticsearch-config
+      terminationGracePeriodSeconds: 3600
+  updateStrategy:
+    type: OnDelete
+  volumeClaimTemplates:
+  - metadata:
+      name: data
+      namespace: logging
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      storageClassName: ceph-rbd-storage
+      resources:
+        requests:
+          #storage: 30Gi
+          storage: 3Gi

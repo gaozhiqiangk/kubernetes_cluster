@@ -45,8 +45,8 @@ data:
         # parser得到的键值数据会经过filter,filter会根据tag机制去匹配日志,因为input时打了kube.*的tag，所以就会匹配到kubernetes的filter
         Match               kube.*
         # input阶段生成time,stream,log三个k-v;经过filter会追加k8s字段,最终存储至ES中,因此要访问apiserver
-        # Kube_URL            https://kubernetes.default.svc:443
-        Kube_URL            https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT_HTTPS}
+         Kube_URL            https://kubernetes.default.svc:443
+        #Kube_URL            https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT_HTTPS}
         # fluent-bit pod访问apiserver使用serviceaccount身份,它会加载默认的证书和token
         Kube_CA_File        /var/run/secrets/kubernetes.io/serviceaccount/ca.crt
         Kube_Token_File     /var/run/secrets/kubernetes.io/serviceaccount/token
@@ -58,34 +58,21 @@ data:
 
   fluent-bit-output.conf: |-
     [OUTPUT]
-        # 指定我们要output时使用的插件,也就是输出到kafka
-        Name           kafka
+        # 指定我们要output时使用的插件,也就是输出到ES
+        Name            es
         # match所有的tag,也可以是kube.*
-        Match          *
-        Brokers        bootstrap.kafka:9092
-        Topics         ops.kube-logs-fluentbit.stream.json.001
-        Timestamp_Key  @timestamp
-        Retry_Limit    false
-        # hides errors "Receive failed: Disconnected" when kafka kills idle connections
-        rdkafka.log.connection.close false
-        # producer buffer is not included in http://fluentbit.io/documentation/0.12/configuration/memory_usage.html#estimating
-        rdkafka.queue.buffering.max.kbytes 10240
-        # for logs you'll probably want this ot be 0 or 1, not more
-        rdkafka.request.required.acks 1
-#################################################
-    [OUTPUT]
-        Name            kafka-rest
         Match           *
-        Host            ${KAFKA_REST_HOST}
-        Port            ${KAFKA_REST_PORT}
+        # 指定elasticsearch主机地址
+        Host            ${ELASTICSEARCH_HOST}
+        # 指定elasticsearch主机端口
+        Port            ${ELASTICSEARCH_PORT}
+        # 输出前按logstash风格输出字段
+        Logstash_Format On
+        Logstash_Prefix kubernetes_cluster
+        Type            flb_type
         Time_Key        @timestamp
-        Tag_Key         _fluent-tag
-        Include_Tag_Key On
-        Tag_Key         My_Tag_Key
-        Topic           ${KAFKA_TOPIC}
-        # Partition     0
-        # Message_Key abc
-################################################
+        Replace_Dots    On
+        Retry_Limit     False
 
   fluent-bit.conf: |-
     @INCLUDE fluent-bit-service.conf
