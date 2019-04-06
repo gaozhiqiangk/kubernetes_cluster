@@ -1,0 +1,179 @@
+# zookeeper headless service
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper-headless
+  namespace: logging
+  labels:
+    app: zookeeper
+spec:
+  clusterIP: None
+  ports:
+  - name: client
+    port: 2181
+    targetPort: 2181
+    protocol: TCP
+  - name: election
+    port: 3888
+    targetPort: 3888
+    protocol: TCP
+  - name: server
+    port: 2888
+    targetPort: 2888
+    protocol: TCP
+  selector:
+    app: zookeeper
+---
+# zookeeper service
+apiVersion: v1
+kind: Service
+metadata:
+  name: zookeeper
+  namespace: logging
+  labels:
+    app: zookeeper
+spec:
+  type: ClusterIP
+  ports:
+  - name: client
+    port: 2181
+    targetPort: client
+  selector:
+    app: zookeeper
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka-headless
+  namespace: logging
+  labels:
+    app: kafka
+spec:
+  ClusterIP: None
+  ports:
+  - name: broker
+    port: 9092
+  selector:
+    app: kafka
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kafka
+  namespace: logging
+  labels:
+    app: kafka
+spec:
+  type: ClusterIP
+  ports:
+  - name: broker
+    port: 9092
+    targetPort: kafka
+  selector:
+    app: kafka
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kafka-test-topic-create-consume-produce
+  namespace: logging
+  annotations:
+    helm.sh/hook: test-success
+spec:
+  restartPolicy: Never
+  containers:
+  - name: kafka-test-consume
+    image: confluentinc/cp-kafka:5.0.1
+    command:
+    - sh
+    - -c
+    - >
+      # 创建topic
+      kafka-topics --zookeeper zookeeper:2181 --topic helm-test-topic-create-consume-produce --create --partitions 1 --replication-factor 1 --if-not-exists && \
+      # 创建message
+      MESSAGE="`date -u`" && \
+      # producer生成一段test message到topic
+      echo "$MESSAGE" | kafka-console-producer --broker-list kafka:9092 --topic helm-test-topic-create-consume-produce && \
+      # consumer从topic获取这段test message
+      kafka-console-consumer --bootstrap-server kafka-headless:9092 --topic helm-test-topic-create-consume-produce --from-beginning --timeout-ms 2000 --max-messages 1 | grep "$MESSAGE"
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: zookeeper
+  namespace: logging
+  labels:
+    app: zookeeper
+    component: server
+spec:
+  serviceName: zookeeper-headless
+  replicas: 3
+  selector:
+    matchExpressions:
+    - key: app
+      operator: In
+      values: ["zookeeper"]
+    - key: component
+      operator: In
+      values: ["server"]
+  updateStrategy:
+    type: OnDelete
+  template:
+    metadata:
+      labels:
+        app: zookeeper
+        component: server
+        version: v1
+    spec:
+      terminationGracePeriodSeconds: 1800
+      securityContext:
+        # 使得能够修改volume,这里也设置了用户身份
+        fsGroup: 1000
+        runAsUser: 1000
+      containers:
+      - name: zookeeper
+        image: gcr.io/google_samples/k8szk:v3
+        imagePullPolicy: IfNotPresent
+        command:
+        - /bin/bash
+        - -xec
+        - zkGenConfig.sh && exec zkServer.sh start-foreground
+        ports:
+        - name: client
+          containerPort: 2181
+          protocol: TCP
+        - name: election
+          containerPort: 3888
+          protocol: TCP
+        - name: server
+          containerPort: 2888
+          protocol: TCP
+        readinessProbe:
+          exec:
+            command:
+            - zkOK.sh
+            initialDelaySeconds: 20
+        livenessProbe:
+          exec:
+            command:
+            - zkOK.sh
+          initialDelaySeconds: 20
+        env:
+        - name: ZK_REPLICAS
+          value: "3"
+        - name: JMXAUTH
+          value: "false"
+        - name: JMXDISABLE
+          value: "false"
+        - name: JMXPORT
+          value: "1099"
+        - name: JMXSSL
+          value: "false"
+        - name: ZK_CLIENT_PORT
+          value: "2181"
+        - name: ZK_ELECTION_PORT
+          value: "3888"
+        - name: ZK_HEAP_SIZE
+          value: "1G"
+        - name: ZK_INIT_LIMIT
+          value: "5"
