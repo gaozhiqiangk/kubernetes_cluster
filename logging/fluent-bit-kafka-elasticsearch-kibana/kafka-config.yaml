@@ -68,5 +68,5 @@ data:
     # 指定连接zookeeper的超时时长
     zookeeper.connection.timeout.ms=6000
     ############################# Group Coordinator Settings #############################
-    #
+    # 默认值为3,再生产环境中为3可以避免应用程序启动起见不必要的高昂的重新再平衡
     group.initial.rebalance.delay.ms=0
