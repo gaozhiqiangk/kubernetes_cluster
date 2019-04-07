@@ -1,0 +1,72 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-config
+  namespace: logging
+  labels:
+    app: kafka
+data:
+  server.properties: |-
+    ############################# Server Basics #############################
+    # kafka cluster中的每一个broker id必须唯一,而且必须是正整数
+    broker.id=0
+    ############################# Socket Server Settings #############################
+    # 指定broker server监听的端口和地址
+    listeners=PLAINTEXT://your.host.name:9092
+    # 指定producers和consumers建议的broker server监听的端口和地址
+    advertised.listeners=PLAINTEXT://your.host.name:9092
+    # 将listener名称映射到安全协议,默认情况下它们是相同的
+    #listener.security.protocol.map=PLAINTEXT:PLAINTEXT,SSL:SSL,SASL_PLAINTEXT:SASL_PLAINTEXT,SASL_SSL:SASL_SSL
+    # 指定broker server接收和发送网络请求的最大线程数,一般情况下为cpu核心数
+    num.network.threads=3
+    # 指定处理IO请求的最大线程数,包括磁盘I/O
+    num.io.threads=8
+    # socket server发送缓冲区大小
+    socket.send.buffer.bytes=102400
+    # socket server接收缓冲区大小
+    socket.receive.buffer.bytes=102400
+    # socket server接收请求的最大字节数(避免OOM)
+    socket.request.max.bytes=104857600
+    ############################# Log Basics #############################
+    # broker server缓存数据和日志的目录
+    log.dirs=/tmp/kafka-logs
+    # 指定每个topic有多少个分区,更多分区意味着更大的并行度,但是意味着需要跨越多个broker
+    num.partitions=1
+    # 指定broker server启动时每个数据目录的日志恢复和关闭时日志刷写到磁盘的线程数
+    # 在使用磁盘阵列的情况下推荐提高此值
+    num.recovery.threads.per.data.dir=1
+    ############################# Internal Topic Settings  #############################
+    # 对于组元数据内部topics"__consumer_offsets"和"__transcation_state"的复制因子
+    # 在开发环境无所谓,但在生产环境请确保大于1,例如3
+    offsets.topic.replication.factor=1
+    transaction.state.log.replication.factor=1
+    transaction.state.log.min.isr=1
+    ############################# Log Flush Policy #############################
+    # message是立刻刷写至磁盘还是延迟一会,权衡一下下列的特性
+    # 1.持久性: 如果不使用复制,那么未刷写的数据可能会丢失
+    # 2.延迟性: 当刷写发生时,非常大的刷写间隔可能会导致延迟高峰,因为将有大量的数据需要刷写
+    # 3.吞吐量: 刷写通常是最昂贵的操作,一个小的书写间隔可能会导致过多的搜索
+    # 下面的配置允许您配置刷写策略,以便在一段时间或之后刷写数据
+    # 接收多少条message之后强制刷写数据到磁盘
+    #log.flush.interval.messages=10000
+    # 最大多长时间强制书写到磁盘
+    #log.flush.interval.ms=1000
+    ############################# Log Retention Policy #############################
+    # 下列配置控制日志segment的处理,可以设置为多长时间后或多大数据后删除segment
+    # 当满足其中之一是,segment会被删除,删除总是从日志末尾开始
+    # segment达到多上时间后删除
+    log.retention.hours=168
+    # segment达到多大时会创建一个新的segment
+    #log.retention.bytes=1073741824
+    # segment达到多大时删除
+    log.segment.bytes=1073741824
+    # 检查segment的时间间隔
+    log.retention.check.interval.ms=300000
+    ############################# Zookeeper #############################
+    # 指定zookeeper地址
+    zookeeper.connect=localhost:2181
+    # 指定连接zookeeper的超时时长
+    zookeeper.connection.timeout.ms=6000
+    ############################# Group Coordinator Settings #############################
+    #
+    group.initial.rebalance.delay.ms=0
