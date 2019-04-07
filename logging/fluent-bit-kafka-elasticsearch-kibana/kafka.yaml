@@ -1,3 +1,20 @@
+apiVersion: policy/v1beta1
+kind: PodDisruptionBudget
+metadata:
+  name: zookeeper
+  namespace: logging
+  labels:
+    app: zookeeper
+    component: server
+spec:
+  selector:
+    matchLabels:
+      app: zookeeper
+      component: server
+  # 控制Pod集群处于运行状态的最低个数,保证主动销毁应用Pod时不知一次销毁过多Pod
+  # 最大不可用的Pod个数
+  maxUnavailable: 1
+---
 # zookeeper headless service
 apiVersion: v1
 kind: Service
@@ -258,7 +275,7 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.name
-        - name: POD_NAME
+        - name: POD_NAMESPACE
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
