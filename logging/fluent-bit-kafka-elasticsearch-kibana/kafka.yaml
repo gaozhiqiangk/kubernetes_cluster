@@ -142,6 +142,11 @@ spec:
         component: server
         version: v1
     spec:
+      tolerations:
+      - key: node.kubernetes.io
+        operator: Equal
+        value: unreachable
+        effect: NoSchedule
       terminationGracePeriodSeconds: 1800
       securityContext:
         # 使得能够修改volume,这里也设置了用户身份
@@ -246,10 +251,14 @@ spec:
         version: v1
     spec:
       tolerations:
-      - operator: Exists
+      - key: node.kubernetes.io
+        operator: Equal
+        value: unreachable
         effect: NoSchedule
-      - operator: Exists
-        effect: NoExecute
+      #- operator: Exists
+      #  effect: NoSchedule
+      #- operator: Exists
+      #  effect: NoExecute
       containers:
       - name: kafka
         image: confluentinc/cp-kafka:5.0.1
