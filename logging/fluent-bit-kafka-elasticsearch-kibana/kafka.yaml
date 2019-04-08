@@ -245,6 +245,11 @@ spec:
         app: kafka
         version: v1
     spec:
+      tolerations:
+      - operator: Exists
+        effect: NoSchedule
+      - operator: Exists
+        effect: NoExecute
       containers:
       - name: kafka
         image: confluentinc/cp-kafka:5.0.1

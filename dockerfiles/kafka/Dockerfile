@@ -5,7 +5,9 @@ LABEL maintainer="gaozhiqiang <gaozhiqiang@solomonlinux.com>"
 ARGS SCALA_VERSION="2.12" \
           KAFKA_VERSION="2.2.0"
 
-ENV KAFKA_HEAP_OPTS \
+ENV POD_NAME \
+          POD_NAMESPACE \
+          KAFKA_HEAP_OPTS \
           KAFKA_ZOOKEEPER_CONNECT \
           KAFKA_LOG_DIRS \
           KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE \
