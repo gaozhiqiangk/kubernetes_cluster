@@ -143,9 +143,8 @@ spec:
         version: v1
     spec:
       tolerations:
-      - key: node.kubernetes.io
-        operator: Equal
-        value: unreachable
+      - key: node.kubernetes.io/unreachable
+        operator: Exists
         effect: NoSchedule
       terminationGracePeriodSeconds: 1800
       securityContext:
@@ -251,9 +250,8 @@ spec:
         version: v1
     spec:
       tolerations:
-      - key: node.kubernetes.io
-        operator: Equal
-        value: unreachable
+      - key: node.kubernetes.io/unreachable
+        operator: Exists
         effect: NoSchedule
       #- operator: Exists
       #  effect: NoSchedule
