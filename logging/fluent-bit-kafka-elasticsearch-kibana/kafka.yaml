@@ -172,12 +172,12 @@ spec:
         readinessProbe:
           exec:
             command:
-            - zkOK.sh
+            - zkOk.sh
           initialDelaySeconds: 20
         livenessProbe:
           exec:
             command:
-            - zkOK.sh
+            - zkOk.sh
           initialDelaySeconds: 20
         env:
         - name: ZK_REPLICAS
