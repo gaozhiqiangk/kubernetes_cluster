@@ -66,7 +66,7 @@ metadata:
   labels:
     app: kafka
 spec:
-  ClusterIP: None
+  clusterIP: None
   ports:
   - name: broker
     port: 9092
@@ -169,7 +169,7 @@ spec:
           exec:
             command:
             - zkOK.sh
-            initialDelaySeconds: 20
+          initialDelaySeconds: 20
         livenessProbe:
           exec:
             command:
@@ -305,7 +305,7 @@ spec:
       volumes:
         {}
       terminationGracePeriodSeconds: 60
-  volumeClaimTemplates
+  volumeClaimTemplates:
   - metadata:
       name: datadir
       namespace: logging
