@@ -232,7 +232,7 @@ spec:
   serviceName: kafka-headless
   podManagementPolicy: OrderedReady
   updateStrategy:
-    OnDelete
+    type: OnDelete
   replicas: 3
   selector:
     matchExpressions:
@@ -302,8 +302,8 @@ spec:
         volumeMounts:
         - name: datadir
           mountPath: /opt/kafka/data
-      volumes:
-        {}
+      #volumes:
+      #- {}
       terminationGracePeriodSeconds: 60
   volumeClaimTemplates:
   - metadata:
