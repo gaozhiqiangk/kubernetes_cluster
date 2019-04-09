@@ -8,7 +8,7 @@ ENV PATH=$PATH:$ZK_ROOT_DIR/zookeeper/bin \
           ZK_LOG_LEVEL=${ZK_LOG_LEVEL:-"INFO"} \
           ZK_DATA_DIR=${ZK_DATA_DIR:-"/var/lib/zookeeper/data"} \
           ZK_DATA_LOG_DIR=${ZK_DATA_LOG_DIR:-"/var/lib/zookeeper/log"} \
-          ZK_LOG_DIR=${ZK_LOG_DIR:-"var/log/zookeeper"} \
+          ZK_LOG_DIR=${ZK_LOG_DIR:-"/var/log/zookeeper"} \
           ZK_ROOT_DIR=${ZK_ROOT_DIR:-"/opt"} \
           ZK_CONF_DIR=${ZK_CONF_DIR:-"/opt/zookeeper/conf"} \
           ZK_CLIENT_PORT=${ZK_CLIENT_PORT:-2181} \
@@ -28,11 +28,11 @@ ENV PATH=$PATH:$ZK_ROOT_DIR/zookeeper/bin \
           LOGGER_PROPS_FILE="$ZK_CONF_DIR/log4j.properties" \
           JAVA_ENV_FILE="$ZK_CONF_DIR/java.env"
  
-RUN apk set -ex \
-    && add --no-cache \
-          bash
+RUN set -ex \
+    && apk add --no-cache --virtual .build-deps \
+          bash \
     && adduser -D "$ZK_USER" \
-    && mkdir -p "$ZK_DATA_DIR" "$ZOO_DATA_LOG_DIR" "$ZOO_lOG_DIR" "$ZOO_CONF_DIR" \
+    && mkdir -p "$ZK_DATA_DIR" "$ZK_DATA_LOG_DIR" "$ZK_LOG_DIR" "$ZK_CONF_DIR" \
     && chown "$ZK_USER:$ZK_USER" "$ZK_DATA_DIR" "$ZK_DATA_LOG_DIR" "$ZK_LOG_DIR" "$ZK_CONF_DIR" \
     && wget -q "https://www.apache.org/dist/zookeeper/$DISTRO_NAME/$DISTRO_NAME.tar.gz" \
     && tar -xf "$DISTRO_NAME.tar.gz" -C $ZK_ROOT_DIR \
@@ -41,13 +41,13 @@ RUN apk set -ex \
     && ln -sv $DISTRO_NAME zookeeper \
     && apk del .build-deps
 
-WORKDIR $DISTRO_NAME
+#WORKDIR $DISTRO_NAME
 
 VOLUME ["$ZK_DATA_DIR", "$ZK_DATA_LOG_DIR", "$ZK_LOG_DIR"]
 
 EXPOSE $ZK_CLIENT_PORT $ZK_SERVER_PORT $ZK_ELECTION_PORT
 
-COPY docker-entrypoint.sh /
+COPY entrypoint.sh /
 
 ENTRYPOINT ["/entrypoint.sh"]
 
