@@ -7,6 +7,7 @@ ZK_LOG_LEVEL=${ZK_LOG_LEVEL:-"INFO"}
 ZK_DATA_DIR=${ZK_DATA_DIR:-"/var/lib/zookeeper/data"}
 ZK_DATA_LOG_DIR=${ZK_DATA_LOG_DIR:-"/var/lib/zookeeper/log"}
 ZK_LOG_DIR=${ZK_LOG_DIR:-"var/log/zookeeper"}
+ZK_ROOT_DIR=${ZK_ROOT_DIR:-"/opt"}
 ZK_CONF_DIR=${ZK_CONF_DIR:-"/opt/zookeeper/conf"}
 ZK_CLIENT_PORT=${ZK_CLIENT_PORT:-2181}
 ZK_SERVER_PORT=${ZK_SERVER_PORT:-2888}
@@ -141,7 +142,7 @@ function create_java_env() {
 }
 
 function create_test_script() {
-	cat > zkOK.sh <<-EOF
+	cat > $ZK_ROOT_DIR/zookeeper/bin/zkOk.sh <<-EOF
 		ZK_CLIENT_PORT=${ZK_CLIENT_PORT:-2181}
 		OK=$(echo ruok | nc 127.0.0.1 $ZK_CLIENT_PORT)
 		if [ "$OK" == "imok" ]; then
