@@ -3,7 +3,7 @@ FROM centos:7
 ARG DISTRO_NAME=zookeeper-3.4.14
 
 ENV DISTRO_NAME=$DISTRO_NAME \
-          ZK_LOG_LEVEL=${ZK_LOG_LEVEL:-"INFO"} \
+          ZK_LOG_LEVEL=${ZK_LOG_LEVEL:-INFO} \
           ZK_USER=${ZK_USER:-zookeeper} \
           ZK_DATA_DIR=${ZK_DATA_DIR:-/var/zookeeper/data} \
           ZK_DATA_LOG_DIR=${ZK_DATA_LOG_DIR:-/var/zookeeper/log} \
@@ -31,7 +31,7 @@ COPY entrypoint.sh /bin
 RUN set -ex \
     && yum -y install wget vim lsof tar bzip2 unzip vim-enhanced passwd sudo yum-utils hostname \
           net-tools rsync man git make automake cmake patch logrotate python-devel libpng-devel \
-          libjpeg-devel pwgen python-pip \
+          libjpeg-devel pwgen python-pip nc \
     && yum clean all \
     && mkdir -p /opt \
     && wget --no-check-certificate --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" \
@@ -39,7 +39,7 @@ RUN set -ex \
     && tar xf jdk-8u201-linux-x64.tar.gz -C /opt/ \
     && rm -rf jdk-8u201-linux-x64.tar.gz \
     && cd /opt \
-    && ln -sv jdk-8u201-linux-x64 java \
+    && ln -sv "$(ls | grep jdk[0-9].*)" java \
     && echo -e 'export JAVA_HOME=/opt/java\n \
        export PATH=$JAVA_HOME/bin:$PATH\n' \
        >> /etc/profile.d/java.sh \
@@ -49,7 +49,7 @@ RUN set -ex \
     && rm -rf $DISTRO_NAME.tar.gz \
     && cd /opt \
     && ln -sv $DISTRO_NAME zookeeper \
-    && echo 'PATH=/opt/zookeeper/bin/:$PATH' > /etc/profile.d/zookeeper.sh \
+    && echo 'PATH=/opt/zookeeper/bin:$PATH' > /etc/profile.d/zookeeper.sh \
     && source /etc/profile.d/zookeeper.sh \
     && cp /opt/zookeeper/conf/zoo_sample.cfg /opt/zookeeper/zoo.cfg \
     && useradd -r $ZK_USER \
@@ -63,6 +63,7 @@ VOLUME ["$ZK_DATA_DIR", "$ZK_DATA_LOG_DIR", "$ZK_LOG_DIR"]
 
 EXPOSE $ZK_CLIENT_PORT $ZK_SERVER_PORT $ZK_ELECTION_PORT
 
-ENTRYPOINT ["/entrypoint.sh"]
+ENTRYPOINT ["/bin/entrypoint.sh"]
 
-CMD ["zkServer.sh", "start-foreground"]
+#CMD /bin/bash
+CMD ["/opt/zookeeper/bin/zkServer.sh", "start-foreground"]
