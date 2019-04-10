@@ -1,16 +1,14 @@
-FROM openjdk:8-jre-alpine
+FROM centos:7
 
 ARG DISTRO_NAME=zookeeper-3.4.14
 
-ENV PATH=$PATH:$ZK_ROOT_DIR/zookeeper/bin \
-          ZK_USER=${ZK_USER:-"zookeeper"} \
-          ZK_USER=${ZK_USER:-"zookeeper"} \
+ENV DISTRO_NAME=$DISTRO_NAME \
           ZK_LOG_LEVEL=${ZK_LOG_LEVEL:-"INFO"} \
-          ZK_DATA_DIR=${ZK_DATA_DIR:-"/var/lib/zookeeper/data"} \
-          ZK_DATA_LOG_DIR=${ZK_DATA_LOG_DIR:-"/var/lib/zookeeper/log"} \
-          ZK_LOG_DIR=${ZK_LOG_DIR:-"/var/log/zookeeper"} \
-          ZK_ROOT_DIR=${ZK_ROOT_DIR:-"/opt"} \
-          ZK_CONF_DIR=${ZK_CONF_DIR:-"/opt/zookeeper/conf"} \
+          ZK_USER=${ZK_USER:-zookeeper} \
+          ZK_DATA_DIR=${ZK_DATA_DIR:-/var/zookeeper/data} \
+          ZK_DATA_LOG_DIR=${ZK_DATA_LOG_DIR:-/var/zookeeper/log} \
+          ZK_LOG_DIR=${ZK_LOG_DIR:-/var/log/zookeeper} \
+          ZK_CONF_DIR=${ZK_CONF_DIR:-/opt/zookeeper/conf} \
           ZK_CLIENT_PORT=${ZK_CLIENT_PORT:-2181} \
           ZK_SERVER_PORT=${ZK_SERVER_PORT:-2888} \
           ZK_ELECTION_PORT=${ZK_ELECTION_PORT:-3888} \
@@ -28,30 +26,42 @@ ENV PATH=$PATH:$ZK_ROOT_DIR/zookeeper/bin \
           LOGGER_PROPS_FILE="$ZK_CONF_DIR/log4j.properties" \
           JAVA_ENV_FILE="$ZK_CONF_DIR/java.env"
  
-COPY entrypoint.sh /
 RUN set -ex \
-    && echo 'https://mirrors.tuna.tsinghua.edu.cn/alpine/latest-stable/main/' > /etc/apk/repositories \
-    && echo 'https://mirrors.tuna.tsinghua.edu.cn/alpine/latest-stable/community/' >> /etc/apk/repositories \
-    && apk add --no-cache --virtual .build-deps \
-          bash \
-          su-exec \
-    && adduser -D "$ZK_USER" \
-    && mkdir -p "$ZK_DATA_DIR" "$ZK_DATA_LOG_DIR" "$ZK_LOG_DIR" "$ZK_CONF_DIR" \
-    && chown "$ZK_USER:$ZK_USER" "$ZK_DATA_DIR" "$ZK_DATA_LOG_DIR" "$ZK_LOG_DIR" "$ZK_CONF_DIR" \
-    ##&& wget -q "https://www.apache.org/dist/zookeeper/$DISTRO_NAME/$DISTRO_NAME.tar.gz" \
+    && yum -y install wget vim lsof tar bzip2 unzip vim-enhanced passwd sudo yum-utils hostname \
+          net-tools rsync man git make automake cmake patch logrotate python-devel libpng-devel \
+          libjpeg-devel pwgen python-pip \
+    && yum clean all \
+    && mkdir -p /opt \
+    && wget --no-check-certificate --no-cookies --header "Cookie: oraclelicense=accept-securebackup-cookie" \
+          https://download.oracle.com/otn-pub/java/jdk/8u201-b09/42970487e3af4f5aa5bca3f542482c60/jdk-8u201-linux-x64.tar.gz \
+    && tar xf jdk-8u201-linux-x64.tar.gz -C /opt/ \
+    && rm -rf jdk-8u201-linux-x64.tar.gz \
+    && cd /opt
+    && ln -sv jdk-8u201-linux-x64 java \
+    && cat > /etc/profile.d/java.sh <<-EOF
+       export JAVA_HOME=/opt/java
+       export PATH=$JAVA_HOME/bin:$PATH
+       EOF
+    && source /etc/profile.d/java.sh
     && wget -q "https://mirrors.tuna.tsinghua.edu.cn/apache/zookeeper/zookeeper-3.4.14/zookeeper-3.4.14.tar.gz" \
-    && tar -xf "$DISTRO_NAME.tar.gz" -C $ZK_ROOT_DIR \
-    && rm -rf "$DISTRO_NAME.tar.gz" \
-    && cd $ZK_ROOT_DIR \
+    && tar xf $DISTRO_NAME.tar.gz -C /opt/ \
+    && rm -rf $DISTRO_NAME.tar.gz \
+    && cd /opt
     && ln -sv $DISTRO_NAME zookeeper \
-    && apk del .build-deps \
-    && chmod +x /entrypoint.sh
+    && echo 'PATH=/opt/zookeeper/bin/:$PATH' > /etc/profile.d/zookeeper.sh
+    && source /etc/profile.d/zookeeper.sh
+    && cp /opt/zookeeper/conf/zoo_sample.cfg /opt/zookeeper/zoo.cfg
+    && useradd -r $ZK_USER
+    && mkdir -p $ZK_DATA_DIR $ZK_DATA_LOG_DIR $ZK_LOG_DIR $ZK_CONF_DIR \
+    && chown $ZK_USER:$ZK_USER $ZK_DATA_DIR $ZK_DATA_LOG_DIR $ZK_LOG_DIR $ZK_CONF_DIR \
 
-WORKDIR $DISTRO_NAME
+#WORKDIR $DISTRO_NAME
 
 VOLUME ["$ZK_DATA_DIR", "$ZK_DATA_LOG_DIR", "$ZK_LOG_DIR"]
 
 EXPOSE $ZK_CLIENT_PORT $ZK_SERVER_PORT $ZK_ELECTION_PORT
+
+COPY entrypoint.sh /
 
 ENTRYPOINT ["/entrypoint.sh"]
 

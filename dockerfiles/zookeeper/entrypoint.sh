@@ -1,14 +1,13 @@
-#!/bin/bash
+#!/bin/sh
 
 set -e
 
-ZK_USER=${ZK_USER:-"zookeeper"}
-ZK_LOG_LEVEL=${ZK_LOG_LEVEL:-"INFO"}
-ZK_DATA_DIR=${ZK_DATA_DIR:-"/var/lib/zookeeper/data"}
-ZK_DATA_LOG_DIR=${ZK_DATA_LOG_DIR:-"/var/lib/zookeeper/log"}
-ZK_LOG_DIR=${ZK_LOG_DIR:-"var/log/zookeeper"}
-ZK_ROOT_DIR=${ZK_ROOT_DIR:-"/opt"}
-ZK_CONF_DIR=${ZK_CONF_DIR:-"/opt/zookeeper/conf"}
+ZK_USER=${ZK_USER:-zookeeper}
+ZK_LOG_LEVEL=${ZK_LOG_LEVEL:-INFO}
+ZK_DATA_DIR=${ZK_DATA_DIR:-/var/zookeeper/data}
+ZK_DATA_LOG_DIR=${ZK_DATA_LOG_DIR:-/var/zookeeper/log}
+ZK_LOG_DIR=${ZK_LOG_DIR:-/var/log/zookeeper}
+ZK_CONF_DIR=${ZK_CONF_DIR:-/opt/zookeeper/conf}
 ZK_CLIENT_PORT=${ZK_CLIENT_PORT:-2181}
 ZK_SERVER_PORT=${ZK_SERVER_PORT:-2888}
 ZK_ELECTION_PORT=${ZK_ELECTION_PORT:-3888}
@@ -25,12 +24,13 @@ ID_FILE="$ZK_DATA_DIR/myid"
 ZK_CONFIG_FILE="$ZK_CONF_DIR/zoo.cfg"
 LOGGER_PROPS_FILE="$ZK_CONF_DIR/log4j.properties"
 JAVA_ENV_FILE="$ZK_CONF_DIR/java.env"
-HOST=`hostname -s`
-DOMAIN=`hostname -d`
+#HOST=`hostname -s`
+#DOMAIN=`hostname -d`
+HOST=zookeeper-0
+DOMAIN=local.domain
 ZK_REPLICAS=3
 function print_servers() {
 	for ((I=0; I<$ZK_REPLICAS; I++)); do
-	#for I in 0 1 2; do
 		echo "server.$I=$HOST.$DOMAIN:$ZK_SERVER_PORT:$ZK_ELECTION_PORT"
 	done
 }
@@ -143,7 +143,7 @@ function create_java_env() {
 }
 
 function create_test_script() {
-	cat > $ZK_ROOT_DIR/zookeeper/bin/zkOk.sh <<-EOF
+	cat > $ZK_ROOT_DIR/$DISTRO_NAME/bin/zkOk.sh <<-EOF
 		ZK_CLIENT_PORT=${ZK_CLIENT_PORT:-2181}
 		OK=$(echo ruok | nc 127.0.0.1 $ZK_CLIENT_PORT)
 		if [ "$OK" == "imok" ]; then
@@ -154,6 +154,6 @@ function create_test_script() {
 	EOF
 }
 
-validate_env && create_configuration && create_data_dirs && create_log_props && create_java_env && create_test_script
+validate_env && create_config && create_data_dirs && create_log_props && create_java_env && create_test_script
 
 exec "$@"
