@@ -53,7 +53,6 @@ VOLUME ["$ZK_DATA_DIR", "$ZK_DATA_LOG_DIR", "$ZK_LOG_DIR"]
 
 EXPOSE $ZK_CLIENT_PORT $ZK_SERVER_PORT $ZK_ELECTION_PORT
 
-
 ENTRYPOINT ["/entrypoint.sh"]
 
 CMD ["zkServer.sh", "start-foreground"]

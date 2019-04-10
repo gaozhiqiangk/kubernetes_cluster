@@ -29,7 +29,8 @@ HOST=`hostname -s`
 DOMAIN=`hostname -d`
 ZK_REPLICAS=3
 function print_servers() {
-	for ((I=0;I<$ZK_REPLICAS;I++)); do
+	for ((I=0; I<$ZK_REPLICAS; I++)); do
+	#for I in 0 1 2; do
 		echo "server.$I=$HOST.$DOMAIN:$ZK_SERVER_PORT:$ZK_ELECTION_PORT"
 	done
 }
