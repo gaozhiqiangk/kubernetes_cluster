@@ -26,6 +26,8 @@ ENV DISTRO_NAME=$DISTRO_NAME \
           LOGGER_PROPS_FILE="$ZK_CONF_DIR/log4j.properties" \
           JAVA_ENV_FILE="$ZK_CONF_DIR/java.env"
  
+COPY entrypoint.sh /bin
+
 RUN set -ex \
     && yum -y install wget vim lsof tar bzip2 unzip vim-enhanced passwd sudo yum-utils hostname \
           net-tools rsync man git make automake cmake patch logrotate python-devel libpng-devel \
@@ -36,32 +38,30 @@ RUN set -ex \
           https://download.oracle.com/otn-pub/java/jdk/8u201-b09/42970487e3af4f5aa5bca3f542482c60/jdk-8u201-linux-x64.tar.gz \
     && tar xf jdk-8u201-linux-x64.tar.gz -C /opt/ \
     && rm -rf jdk-8u201-linux-x64.tar.gz \
-    && cd /opt
+    && cd /opt \
     && ln -sv jdk-8u201-linux-x64 java \
-    && cat > /etc/profile.d/java.sh <<-EOF
-       export JAVA_HOME=/opt/java
-       export PATH=$JAVA_HOME/bin:$PATH
-       EOF
-    && source /etc/profile.d/java.sh
+    && echo -e 'export JAVA_HOME=/opt/java\n \
+       export PATH=$JAVA_HOME/bin:$PATH\n' \
+       >> /etc/profile.d/java.sh \
+    && source /etc/profile.d/java.sh \
     && wget -q "https://mirrors.tuna.tsinghua.edu.cn/apache/zookeeper/zookeeper-3.4.14/zookeeper-3.4.14.tar.gz" \
     && tar xf $DISTRO_NAME.tar.gz -C /opt/ \
     && rm -rf $DISTRO_NAME.tar.gz \
-    && cd /opt
+    && cd /opt \
     && ln -sv $DISTRO_NAME zookeeper \
-    && echo 'PATH=/opt/zookeeper/bin/:$PATH' > /etc/profile.d/zookeeper.sh
-    && source /etc/profile.d/zookeeper.sh
-    && cp /opt/zookeeper/conf/zoo_sample.cfg /opt/zookeeper/zoo.cfg
-    && useradd -r $ZK_USER
+    && echo 'PATH=/opt/zookeeper/bin/:$PATH' > /etc/profile.d/zookeeper.sh \
+    && source /etc/profile.d/zookeeper.sh \
+    && cp /opt/zookeeper/conf/zoo_sample.cfg /opt/zookeeper/zoo.cfg \
+    && useradd -r $ZK_USER \
     && mkdir -p $ZK_DATA_DIR $ZK_DATA_LOG_DIR $ZK_LOG_DIR $ZK_CONF_DIR \
     && chown $ZK_USER:$ZK_USER $ZK_DATA_DIR $ZK_DATA_LOG_DIR $ZK_LOG_DIR $ZK_CONF_DIR \
+    && chmod +x /bin/entrypoint.sh
 
 #WORKDIR $DISTRO_NAME
 
 VOLUME ["$ZK_DATA_DIR", "$ZK_DATA_LOG_DIR", "$ZK_LOG_DIR"]
 
 EXPOSE $ZK_CLIENT_PORT $ZK_SERVER_PORT $ZK_ELECTION_PORT
-
-COPY entrypoint.sh /
 
 ENTRYPOINT ["/entrypoint.sh"]
 

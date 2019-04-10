@@ -29,6 +29,7 @@ JAVA_ENV_FILE="$ZK_CONF_DIR/java.env"
 HOST=zookeeper-0
 DOMAIN=local.domain
 ZK_REPLICAS=3
+
 function print_servers() {
 	for ((I=0; I<$ZK_REPLICAS; I++)); do
 		echo "server.$I=$HOST.$DOMAIN:$ZK_SERVER_PORT:$ZK_ELECTION_PORT"
@@ -143,7 +144,7 @@ function create_java_env() {
 }
 
 function create_test_script() {
-	cat > $ZK_ROOT_DIR/$DISTRO_NAME/bin/zkOk.sh <<-EOF
+	cat > /opt/zookeeper/bin/zkOk.sh <<-EOF
 		ZK_CLIENT_PORT=${ZK_CLIENT_PORT:-2181}
 		OK=$(echo ruok | nc 127.0.0.1 $ZK_CLIENT_PORT)
 		if [ "$OK" == "imok" ]; then
