@@ -28,26 +28,31 @@ ENV PATH=$PATH:$ZK_ROOT_DIR/zookeeper/bin \
           LOGGER_PROPS_FILE="$ZK_CONF_DIR/log4j.properties" \
           JAVA_ENV_FILE="$ZK_CONF_DIR/java.env"
  
+COPY entrypoint.sh /
 RUN set -ex \
+    && echo 'https://mirrors.tuna.tsinghua.edu.cn/alpine/latest-stable/main/' > /etc/apk/repositories \
+    && echo 'https://mirrors.tuna.tsinghua.edu.cn/alpine/latest-stable/community/' >> /etc/apk/repositories \
     && apk add --no-cache --virtual .build-deps \
           bash \
+          su-exec \
     && adduser -D "$ZK_USER" \
     && mkdir -p "$ZK_DATA_DIR" "$ZK_DATA_LOG_DIR" "$ZK_LOG_DIR" "$ZK_CONF_DIR" \
     && chown "$ZK_USER:$ZK_USER" "$ZK_DATA_DIR" "$ZK_DATA_LOG_DIR" "$ZK_LOG_DIR" "$ZK_CONF_DIR" \
-    && wget -q "https://www.apache.org/dist/zookeeper/$DISTRO_NAME/$DISTRO_NAME.tar.gz" \
+    ##&& wget -q "https://www.apache.org/dist/zookeeper/$DISTRO_NAME/$DISTRO_NAME.tar.gz" \
+    && wget -q "https://mirrors.tuna.tsinghua.edu.cn/apache/zookeeper/zookeeper-3.4.14/zookeeper-3.4.14.tar.gz" \
     && tar -xf "$DISTRO_NAME.tar.gz" -C $ZK_ROOT_DIR \
     && rm -rf "$DISTRO_NAME.tar.gz" \
     && cd $ZK_ROOT_DIR \
     && ln -sv $DISTRO_NAME zookeeper \
-    && apk del .build-deps
+    && apk del .build-deps \
+    && chmod +x /entrypoint.sh
 
-#WORKDIR $DISTRO_NAME
+WORKDIR $DISTRO_NAME
 
 VOLUME ["$ZK_DATA_DIR", "$ZK_DATA_LOG_DIR", "$ZK_LOG_DIR"]
 
 EXPOSE $ZK_CLIENT_PORT $ZK_SERVER_PORT $ZK_ELECTION_PORT
 
-COPY entrypoint.sh /
 
 ENTRYPOINT ["/entrypoint.sh"]
 

@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 
 set -e
 
@@ -27,9 +27,9 @@ LOGGER_PROPS_FILE="$ZK_CONF_DIR/log4j.properties"
 JAVA_ENV_FILE="$ZK_CONF_DIR/java.env"
 HOST=`hostname -s`
 DOMAIN=`hostname -d`
-
+ZK_REPLICAS=3
 function print_servers() {
-	for ((I=0; I<$ZK_REPLICAS; I++)); do
+	for ((I=0;I<$ZK_REPLICAS;I++)); do
 		echo "server.$I=$HOST.$DOMAIN:$ZK_SERVER_PORT:$ZK_ELECTION_PORT"
 	done
 }
