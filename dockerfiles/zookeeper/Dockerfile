@@ -53,7 +53,7 @@ RUN set -ex \
     && echo 'PATH=/opt/zookeeper/bin:$PATH' > /etc/profile.d/zookeeper.sh \
     && source /etc/profile.d/zookeeper.sh \
     && cp /opt/zookeeper/conf/zoo_sample.cfg /opt/zookeeper/zoo.cfg \
-    && useradd -r $ZK_USER \
+    && useradd -u 1000 $ZK_USER \
     && mkdir -p $ZK_DATA_DIR $ZK_DATA_LOG_DIR $ZK_LOG_DIR $ZK_CONF_DIR \
     && chown $ZK_USER:$ZK_USER $ZK_DATA_DIR $ZK_DATA_LOG_DIR $ZK_LOG_DIR $ZK_CONF_DIR \
     && chmod +x /bin/entrypoint.sh

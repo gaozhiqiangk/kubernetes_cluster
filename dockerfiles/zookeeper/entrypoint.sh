@@ -153,6 +153,7 @@ function create_test_script() {
 			exit 1
 		fi
 	EOF
+	chmod +x /opt/zookeeper/bin/zkOk.sh
 }
 
 validate_env && create_config && create_data_dirs && create_log_props && create_java_env && create_test_script
