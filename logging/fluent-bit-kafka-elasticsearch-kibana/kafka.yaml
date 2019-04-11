@@ -148,7 +148,7 @@ spec:
         effect: NoSchedule
       terminationGracePeriodSeconds: 1800
       securityContext:
-        # 使得能够修改volume,这里也设置了用户身份
+        # 使得能够修改volume,这里也设置了用户身份;要与Dockerfile中定义的用户的UID一致
         fsGroup: 1000
         runAsUser: 1000
       containers:
@@ -170,11 +170,11 @@ spec:
         - name: server
           containerPort: 2888
           protocol: TCP
-        #readinessProbe:
-        #  exec:
-        #    command:
-        #    - /opt/zookeeper/bin/zkOk.sh
-        #  initialDelaySeconds: 20
+        readinessProbe:
+          exec:
+            command:
+            - "/opt/zookeeper/bin/zkOk.sh"
+          initialDelaySeconds: 20
         #livenessProbe:
         #  exec:
         #    command:
