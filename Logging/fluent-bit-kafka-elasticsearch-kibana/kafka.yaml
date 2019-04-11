@@ -173,13 +173,13 @@ spec:
         readinessProbe:
           exec:
             command:
-            - "/opt/zookeeper/bin/zkOk.sh"
+            - zkOk.sh
           initialDelaySeconds: 20
-        #livenessProbe:
-        #  exec:
-        #    command:
-        #    - zkOk.sh
-        #  initialDelaySeconds: 20
+        livenessProbe:
+          exec:
+            command:
+            - zkOk.sh
+          initialDelaySeconds: 20
         env:
         - name: ZK_REPLICAS
           value: "3"
