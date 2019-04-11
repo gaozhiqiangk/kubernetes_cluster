@@ -4,4 +4,5 @@ $ docker run -it --rm solomonlinux/zookeeper:3.4.14</br>
 
 ### 测试镜像是否运行正常
 $ kubectl exec -it zookeeper-1 -n logging -- bash</br>
-\# zkServer.sh status
+\# zkServer.sh status</br>
+$ zkCli.sh -server 127.0.0.1:2181
