@@ -32,7 +32,7 @@ DOMAIN=`hostname -d`
 
 function print_servers() {
 	for ((I=0; I<$ZK_REPLICAS; I++)); do
-		echo "server.$I=$HOST.$DOMAIN:$ZK_SERVER_PORT:$ZK_ELECTION_PORT"
+		echo "server.$I=${HOST%-*}-$I.$DOMAIN:$ZK_SERVER_PORT:$ZK_ELECTION_PORT"
 	done
 }
 

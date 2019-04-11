@@ -58,7 +58,7 @@ RUN set -ex \
     && mkdir -p $ZK_DATA_DIR $ZK_DATA_LOG_DIR $ZK_LOG_DIR $ZK_CONF_DIR \
     && chown $ZK_USER:$ZK_USER $ZK_DATA_DIR $ZK_DATA_LOG_DIR $ZK_LOG_DIR $ZK_CONF_DIR \
     && chmod +x /bin/entrypoint.sh \
-    && echo 'ZK_CLIENT_PORT=${ZK_CLIENT_PORT:-2181}' > /opt/zookeerper/bin/zkOk.sh \
+    && echo 'ZK_CLIENT_PORT=${ZK_CLIENT_PORT:-2181}' > /opt/zookeeper/bin/zkOk.sh \
     && echo 'OK=$(echo ruok | nc 127.0.0.1 $ZK_CLIENT_PORT)' >> /opt/zookeeper/bin/zkOk.sh \
     && echo 'if [ "$OK" == "imok" ]; then' >> /opt/zookeeper/bin/zkOk.sh \
     && echo -e '\texit 0' >> /opt/zookeeper/bin/zkOk.sh \
