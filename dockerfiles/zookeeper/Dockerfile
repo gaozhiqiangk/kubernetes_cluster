@@ -3,6 +3,7 @@ FROM centos:7
 ARG DISTRO_NAME=zookeeper-3.4.14
 
 ENV DISTRO_NAME=$DISTRO_NAME \
+          JAVA_HOME=/opt/java \
           ZK_LOG_LEVEL=${ZK_LOG_LEVEL:-INFO} \
           ZK_USER=${ZK_USER:-zookeeper} \
           ZK_DATA_DIR=${ZK_DATA_DIR:-/var/zookeeper/data} \
@@ -17,8 +18,8 @@ ENV DISTRO_NAME=$DISTRO_NAME \
           ZK_SYNC_LIMIT=${ZK_SYNC_LIMIT:-5} \
           ZK_HEAP_SIZE=${ZK_HEAP_SIZE:-2G} \
           ZK_MAX_CLIENT_CNXNS=${ZK_MAX_CLIENT_CNXNS:-60} \
-          ZK_MIN_SESSION_TIMEOUT=${ZK_MIN_SESSION_TIMEOUT:-$((ZK_TICK_TIME*2))} \
-          ZK_MAX_SESSION_TIMEOUT=${ZK_MAX_SESSION_TIMEOUT:-$((ZK_TICK_TIME*20))} \
+          #ZK_MIN_SESSION_TIMEOUT=${ZK_MIN_SESSION_TIMEOUT:- $((ZK_TICK_TIME*2))} \
+          #ZK_MAX_SESSION_TIMEOUT=${ZK_MAX_SESSION_TIMEOUT:- $((ZK_TICK_TIME*20))} \
           ZK_SNAP_RETAIN_COUNT=${ZK_SNAP_RETAIN_COUNT:-3} \
           ZK_PURGE_INTERVAL=${ZK_PURGE_INTERVAL:-0} \
           ID_FILE="$ZK_DATA_DIR/myid" \
@@ -66,4 +67,4 @@ EXPOSE $ZK_CLIENT_PORT $ZK_SERVER_PORT $ZK_ELECTION_PORT
 ENTRYPOINT ["/bin/entrypoint.sh"]
 
 #CMD /bin/bash
-CMD ["/opt/zookeeper/bin/zkServer.sh", "start-foreground"]
+CMD ["/opt/zookeeper/bin/zkServer.sh", "start-foreground", "/opt/zookeeper/conf/zoo.cfg"]
