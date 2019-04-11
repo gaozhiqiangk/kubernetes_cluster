@@ -170,16 +170,16 @@ spec:
         - name: server
           containerPort: 2888
           protocol: TCP
-        readinessProbe:
-          exec:
-            command:
-            - zkOk.sh
-          initialDelaySeconds: 20
-        livenessProbe:
-          exec:
-            command:
-            - zkOk.sh
-          initialDelaySeconds: 20
+        #readinessProbe:
+        #  exec:
+        #    command:
+        #    - /opt/zookeeper/bin/zkOk.sh
+        #  initialDelaySeconds: 20
+        #livenessProbe:
+        #  exec:
+        #    command:
+        #    - zkOk.sh
+        #  initialDelaySeconds: 20
         env:
         - name: ZK_REPLICAS
           value: "3"

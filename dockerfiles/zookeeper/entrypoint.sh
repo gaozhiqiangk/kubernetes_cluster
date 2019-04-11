@@ -143,19 +143,6 @@ function create_java_env() {
 	echo "Wrote JVM configuration to $JAVA_ENV_FILE"
 }
 
-function create_test_script() {
-	cat > /opt/zookeeper/bin/zkOk.sh <<-EOF
-		ZK_CLIENT_PORT=${ZK_CLIENT_PORT:-2181}
-		OK=$(echo ruok | nc 127.0.0.1 $ZK_CLIENT_PORT)
-		if [ "$OK" == "imok" ]; then
-			exit 0
-		else
-			exit 1
-		fi
-	EOF
-	chmod +x /opt/zookeeper/bin/zkOk.sh
-}
-
-validate_env && create_config && create_data_dirs && create_log_props && create_java_env && create_test_script
+validate_env && create_config && create_data_dirs && create_log_props && create_java_env
 
 exec "$@"

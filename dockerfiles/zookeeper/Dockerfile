@@ -4,6 +4,7 @@ ARG DISTRO_NAME=zookeeper-3.4.14
 
 ENV DISTRO_NAME=$DISTRO_NAME \
           JAVA_HOME=/opt/java \
+          PATH=/opt/java/bin:/opt/zookeeper/bin:$PATH \
           ZK_LOG_LEVEL=${ZK_LOG_LEVEL:-INFO} \
           ZK_USER=${ZK_USER:-zookeeper} \
           ZK_DATA_DIR=${ZK_DATA_DIR:-/var/zookeeper/data} \
@@ -56,7 +57,15 @@ RUN set -ex \
     && useradd -u 1000 $ZK_USER \
     && mkdir -p $ZK_DATA_DIR $ZK_DATA_LOG_DIR $ZK_LOG_DIR $ZK_CONF_DIR \
     && chown $ZK_USER:$ZK_USER $ZK_DATA_DIR $ZK_DATA_LOG_DIR $ZK_LOG_DIR $ZK_CONF_DIR \
-    && chmod +x /bin/entrypoint.sh
+    && chmod +x /bin/entrypoint.sh \
+    && echo 'ZK_CLIENT_PORT=${ZK_CLIENT_PORT:-2181}' > /opt/zookeerper/bin/zkOk.sh \
+    && echo 'OK=$(echo ruok | nc 127.0.0.1 $ZK_CLIENT_PORT)' >> /opt/zookeeper/bin/zkOk.sh \
+    && echo 'if [ "$OK" == "imok" ]; then' >> /opt/zookeeper/bin/zkOk.sh \
+    && echo -e '\texit 0' >> /opt/zookeeper/bin/zkOk.sh \
+    && echo 'else' >> /opt/zookeeper/bin/zkOk.sh \
+    && echo -e '\texit 1' >> /opt/zookeeper/bin/zkOk.sh \
+    && echo 'fi' >> /opt/zookeeper/bin/zkOk.sh \
+    && chmod +x /opt/zookeeper/bin/zkOk.sh
 
 #WORKDIR $DISTRO_NAME
 
