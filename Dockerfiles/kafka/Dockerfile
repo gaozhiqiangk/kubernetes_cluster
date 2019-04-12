@@ -26,12 +26,13 @@ RUN set -e \
     && echo 'export JAVA_HOME=/opt/java' > /etc/profile.d/java.sh \
     && echo 'export PATH=$JAVA_HOME/bin:$PATH' >> /etc/profile.d/java.sh \
     && source /etc/profile.d/java.sh \
-    && curl -fsSL http://mirrors.tuna.tsinghua.edu.cn/apache/kafka/${KAFKA_VERSION}/kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz \
+    && wget http://mirrors.tuna.tsinghua.edu.cn/apache/kafka/${KAFKA_VERSION}/kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz \
     && tar xf kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz -C /opt/ \
     && rm -rf kafka_${SCAlA_VERSION}-${KAFKA_VERSION}.tgz
     && cd /opt \
     && ln -sv kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz kafka \
-    &&
+    && echo 'export PATH=/opt/kafka/bin:$PATH' > /etc/profile.d/kafka.sh \
+    && source /etc/profile.d/kafka.sh \
     && useradd -u 1000 kafka \
     && chmod +x /bin/entrypoint.sh
 
@@ -39,7 +40,7 @@ EXPOSE 9092
 
 ENTRYPOINT ["entrypoint.sh"]
 
-CMD ["/opt/kafka/kafka-server-start.sh", "server.properties"]
+CMD ["kafka-server-start.sh", "/opt/kafka/conf/server.properties"]
 
 
 ENV POD_NAME \
@@ -51,21 +52,3 @@ ENV POD_NAME \
           KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR \
           KAFKA_JMX_PORT
 
-RUN apk add --no-cache --virtual .build-deps \
-          curl \
-    && curl -fsSL http://mirrors.tuna.tsinghua.edu.cn/apache/kafka/${KAFKA_VERSION}/kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz \
-    && mkdir -p /opt \
-    && tar xf kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz -C /opt \
-    && mv /opt/kafka_${SCALA_VERSION}-${KAFKA_VERSION} /opt/kafka
-
-ADD entrypoint.sh /bin/
-
-EXPOSE 9092
-
-CMD ["/opt/kafka/kafka-server-start.sh", "server.properties"]
-
-ENTRYPOINT ["/bin/entrypoint.sh"]
-
-#ENTRYPOINT ["sh", "/usr/local/kafka/bin/kafka-server-start.sh", "/usr/local/kafka/config/server.proties"]
-
-#curl -fsSL http://mirrors.tuna.tsinghua.edu.cn/apache/kafka/${KAFKA_VERSION}/kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz -o kafka.tgz
