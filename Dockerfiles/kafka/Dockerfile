@@ -34,6 +34,8 @@ RUN set -e \
     && echo 'export PATH=/opt/kafka/bin:$PATH' > /etc/profile.d/kafka.sh \
     && source /etc/profile.d/kafka.sh \
     && useradd -u 1000 kafka \
+    && chown -R kafka:kafka /opt/kafka
+    && chown -R kafka:kafka /opt/kafka/
     && chmod +x /bin/entrypoint.sh
 
 EXPOSE 9092
