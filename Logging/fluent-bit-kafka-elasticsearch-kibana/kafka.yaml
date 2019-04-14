@@ -260,24 +260,25 @@ spec:
       #  effect: NoExecute
       containers:
       - name: kafka
-        image: confluentinc/cp-kafka:5.0.1
+        #image: confluentinc/cp-kafka:5.0.1
+        image: solomonlinuxkafka_2.12-2.2.0
         imagePullPolicy: IfNotPresent
-        readinessProbe:
-          tcpSocket:
-            port: kafka
-          initialDelaySeconds: 30
-          periodSeconds: 10
-          timeoutSeconds: 5
-          successThreshold: 1
-          failureThreshold: 3
-        livenessProbe:
-          exec:
-            command:
-            - sh
-            - -ec
-            - /usr/bin/jps | /bin/grep -q SupportedKafka
-          initialDelaySeconds: 30
-          timeoutSeconds: 5
+        #readinessProbe:
+        #  tcpSocket:
+        #    port: kafka
+        #  initialDelaySeconds: 30
+        #  periodSeconds: 10
+        #  timeoutSeconds: 5
+        #  successThreshold: 1
+        #  failureThreshold: 3
+        #livenessProbe:
+        #  exec:
+        #    command:
+        #    - sh
+        #    - -ec
+        #    - /usr/bin/jps | /bin/grep -q SupportedKafka
+        #  initialDelaySeconds: 30
+        #  timeoutSeconds: 5
         ports:
         - name: kafka
           containerPort: 9092
@@ -304,19 +305,22 @@ spec:
           value: "3"
         - name: KAFKA_JMX_PORT
           value: "5555"
-        command:
-        - sh
-        - -exc
-        - >
-          unset KAFKA_PORT && \
-          export KAFKA_BROKER_ID=${POD_NAME##*-} && \
-          export KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://${POD_NAME}.kafka-headless.${POD_NAMESPACE}:9092 && \
-          exec /etc/confluent/docker/run
+        #command:
+        #- sh
+        #- -exc
+        #- >
+        #  unset KAFKA_PORT && \
+        #  export KAFKA_BROKER_ID=${POD_NAME##*-} && \
+        #  export KAFKA_ADVERTISED_LISTENERS=PLAINTEXT://${POD_NAME}.kafka-headless.${POD_NAMESPACE}:9092 && \
+        #  exec /etc/confluent/docker/run
         volumeMounts:
-        - name: datadir
+        - name: datadirr
           mountPath: /opt/kafka/data
       #volumes:
       #- {}
+      volumes:
+      - name: datadirr
+        emptyDir: {}
       terminationGracePeriodSeconds: 60
   volumeClaimTemplates:
   - metadata:
