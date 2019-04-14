@@ -11,10 +11,10 @@ NUM_IO_THREADS=${NUM_IO_THREADS:-3}
 SOCKET_SEND_BUFFER_BYTES=${SOCKET_SEND_BUFFER_BYTES:-102400}
 SOCKET_RECEIVE_BUFFER_BYTES=${SOCKET_RECEIVE_BUFFER_BYTES:-102400}
 SOCKET_REQUEST_MAX_BYTES=${SOCKET_REQUEST_MAX_BYTES:-104857600}
-LOG_DIRS=${LOG_DIRS:-/tmp/kafka-logs}
+LOG_DIRS=${LOG_DIRS:-/var/kafka/logs}
 NUM_PARTITIONS=${NUM_PARTITIONS:-1}
 NUM_RECOVERY_THREADS_PER_DATA_DIR=${NUM_RECOVERY_THREADS_PER_DATA_DIR:-1}
-OFFSETS_TOPIC_REPLICATION.FACTOR=${OFFSETS_TOPIC_REPLICATION_FACTOR:-1}
+OFFSETS_TOPIC_REPLICATION.FACTOR=${OFFSETS_TOPIC_REPLICATION_FACTOR:-3}
 TRANSACTION_STATE_LOG_MIN_ISR=${TRANSACTION_STATE_LOG_MIN_ISR:-1}
 #LOG_FLUSH_INTERVAL_MESSAGES=${LOG_FLUSH_INTERVAL_MESSAGES:-10000}
 #LOG_FLUSH_INTERVAL_MS=${LOG_FLUSH_INTERVAL_MS:-1000}
@@ -22,10 +22,11 @@ LOG_RETENTION_HOURS=${LOG_RETENTION_HOURS:-168}
 #LOG_RETENTION_BYTES=${LOG_RETENTION_BYTES:-1073741824}
 LOG_SEGMENT_BYTES=${LOG_SEGMENT_BYTES:-1073741824}
 LOG_RETENTION_CHECK_INTERVAL_MS=${LOG_RETENTION_CHECK_INTERVAL_MS:-300000}
-ZOOKEEPER_CONNECT=${ZOOKEEPER_CONNECT:-localhost:2181}
+ZOOKEEPER_CONNECT=${ZOOKEEPER_CONNECT:-zookeeper:2181}
 ZOOKEEPER_CONNECTION_TIMEOUT_MS=${ZOOKEEPER_CONNECTION_TIMEOUT_MS:-6000}
 GROUP_INTERVAL_REBALANCE_DELAY_MS=${GROUP_INTERVAL_REBALANCE_DELAY_MS:-0}
-
+HEAP_OPTS="-Xmx1G -Xms1G"
+JMX_PORT=5555
 
 KAFKA_HEAP_OPTS="-Xmx1G -Xms1G"
 KAFKA_ZOOKEEPER_CONNECT="zookeeper:2181"
@@ -35,33 +36,35 @@ KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR="3"
 KAFKA_JMX_PORT="5555"
 
 CONF_DIR=/opt/kafka/config
+CONFIG_FILE=/opt/kafka/config/server.properties
 
 function create_server_properties() {
 	mv $CONF_DIR/server.properties{,.bak}
-	broker.id=$BROKER_ID
-	#listeners=PLAINTEST://:9002
-	#advertised.listeners=PLAINTEXT://your.host.name:9092
-	#listener.security.protocol.map=PLAINTEXT:PLAINTEXT,SSL:SSL,SASL_PLAINTEXT:SASL_PLAINTEXT,SASL_SSL:SASL_SSL
-	num.network.threads=3
-	num.io.threads=3
-	socket.send.buffer.bytes=102400
-	socket.receive.buffer.bytes=102400
-	socket.request.max.bytes=104857600
-	log.dirs=/tmp/kafka-logs
-	num.partitions=1
-	num.recovery.threads.per.data.dir=1
-	offsets.topic.replication.factor=1
-	transaction.state.log.min.isr=1
-	#log.flush.interval.messages=10000
-	#log.flush.interval.ms=1000
-	log.retention.hours=168
-	#log.retention.bytes=1073741824
-	log.segment.bytes=1073741824
-	log.retention.check.interval.ms=300000
-	zookeeper.connect=localhost:2181
-	zookeeper.connection.timeout.ms=6000
-	group.interval.rebalance.delay.ms=0
-
+	echo "broker.id=$BROKER_ID" > $CONFIG_FILE
+	#echo "listeners=$LISTENERS" >> $CONFIG_FILE
+	#echo "advertised.listeners=$ADVERTISED_LISTENERS" >> $CONFIG_FILE
+	#echo "listener.security.protocol.map=$LISTENER.SECURITY_PROTOCOL_MAP" >> $CONFIG_FILE
+	echo "num.network.threads=$NUM_NETWORK_THREADS" >> $CONFIG_FILE
+	echo "num.io.threads=$NUM_IO_THREADS" >> $CONFIG_FILE
+	echo "socket.send.buffer.bytes=$SOCKET_SEND_BUFFER_BYTES" >> $CONFIG_FILE
+	echo "socket.receive.buffer.bytes=$SOCKET_RECEIVE_BUFFER_BYTES" >> $CONFIG_FILE
+	echo "socket.request.max.bytes=$SOCKET_REQUEST_MAX_BYTES" >> $CONFIG_FILE
+	echo "log.dirs=$LOG_DIRS" >> $CONFIG_FILE
+	echo "num.partitions=$NUM_PARTITIONS" >> $CONFIG_FILE
+	echo "num.recovery.threads.per.data.dir=$NUM_RECOVERY_THREADS_PER_DATA_DIR" >> $CONFIG_FILE
+	echo "offsets.topic.replication.factor=$OFFSETS_TOPIC_REPLICATION_FACTOR" >> $CONFIG_FILE
+	echo "transaction.state.log.min.isr=$TRANSACTION_STATE_LOG_MIN_ISR" >> $CONFIG_FILE
+	#echo "log.flush.interval.messages=$LOG_FLUSH_INTERVAL_MESSAGES" >> $CONFIG_FILE
+	#echo "log.flush.interval.ms=$LOG_FLUSH_INTERVAL_MS" >> $CONFIG_FILE
+	echo "log.retention.hours=$LOG_RETENTION_HOURS" >> $CONFIG_FILE
+	#echo "log.retention.bytes=$LOG_RETENTION_BYTES" >> $CONFIG_FILE
+	echo "log.segment.bytes=$LOG_SEGMENT_BYTES" >> $CONFIG_FILE
+	echo "log.retention.check.interval.ms=$LOG_RETENTION_CHECK_INTERVAL_MS" >> $CONFIG_FILE
+	echo "zookeeper.connect=$ZOOKEEPER_CONNECT" >> $CONFIG_FILE
+	echo "zookeeper.connection.timeout.ms=$ZOOKEEPER_CONNECTION_TIMEOUT_MS" >> $CONFIG_FILE
+	echo "group.interval.rebalance.delay.ms=$GROUP_INTERVAL_REBALANCE_DELAY_MS" >> $CONFIG_FILE
 }
+
+create_server_properties
 
 exec "$@"
