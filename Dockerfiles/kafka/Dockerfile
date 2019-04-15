@@ -2,13 +2,13 @@ FROM centos:7
 
 LABEL maintainer="gaozhiqiang <gaozhiqiang@solomonlinux.com>"
 
-ARGS SCALA_VERSION="2.12" \
+ARG SCALA_VERSION="2.12" \
           KAFKA_VERSION="2.2.0"
 
 ENV SCALA_VERSION="2.12" \
           KAFKA_VERSION="2.2.0" \
           JAVA_HOME=/opt/java \
-          PATH=/opt/kafka/bin:$PATH \
+          PATH=/opt/kafka/bin:$PATH
 
 COPY entrypoint.sh /bin
 
@@ -28,14 +28,14 @@ RUN set -e \
     && source /etc/profile.d/java.sh \
     && wget http://mirrors.tuna.tsinghua.edu.cn/apache/kafka/${KAFKA_VERSION}/kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz \
     && tar xf kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz -C /opt/ \
-    && rm -rf kafka_${SCAlA_VERSION}-${KAFKA_VERSION}.tgz
+    && rm -rf kafka_${SCAlA_VERSION}-${KAFKA_VERSION}.tgz \
     && cd /opt \
     && ln -sv kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz kafka \
     && echo 'export PATH=/opt/kafka/bin:$PATH' > /etc/profile.d/kafka.sh \
     && source /etc/profile.d/kafka.sh \
     && useradd -u 1000 kafka \
-    && chown -R kafka:kafka /opt/kafka
-    && chown -R kafka:kafka /opt/kafka/
+    && chown -R kafka:kafka /opt/kafka \
+    && chown -R kafka:kafka /opt/kafka/ \
     && chmod +x /bin/entrypoint.sh
 
 EXPOSE 9092
@@ -43,14 +43,3 @@ EXPOSE 9092
 ENTRYPOINT ["entrypoint.sh"]
 
 CMD ["kafka-server-start.sh", "/opt/kafka/conf/server.properties"]
-
-
-ENV POD_NAME \
-          POD_NAMESPACE \
-          KAFKA_HEAP_OPTS \
-          KAFKA_ZOOKEEPER_CONNECT \
-          KAFKA_LOG_DIRS \
-          KAFKA_CONFLUENT_SUPPORT_METRICS_ENABLE \
-          KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR \
-          KAFKA_JMX_PORT
-
