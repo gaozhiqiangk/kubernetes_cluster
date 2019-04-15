@@ -2,8 +2,8 @@ FROM centos:7
 
 LABEL maintainer="gaozhiqiang <gaozhiqiang@solomonlinux.com>"
 
-ARG SCALA_VERSION="2.12" \
-          KAFKA_VERSION="2.2.0"
+ARG SCALA_VERSION="2.12"
+ARG KAFKA_VERSION="2.2.0"
 
 ENV SCALA_VERSION="2.12" \
           KAFKA_VERSION="2.2.0" \
@@ -30,12 +30,11 @@ RUN set -e \
     && tar xf kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz -C /opt/ \
     && rm -rf kafka_${SCAlA_VERSION}-${KAFKA_VERSION}.tgz \
     && cd /opt \
-    && ln -sv kafka_${SCALA_VERSION}-${KAFKA_VERSION}.tgz kafka \
+    && ln -sv kafka_${SCALA_VERSION}-${KAFKA_VERSION} kafka \
     && echo 'export PATH=/opt/kafka/bin:$PATH' > /etc/profile.d/kafka.sh \
     && source /etc/profile.d/kafka.sh \
     && useradd -u 1000 kafka \
     && chown -R kafka:kafka /opt/kafka \
-    && chown -R kafka:kafka /opt/kafka/ \
     && chmod +x /bin/entrypoint.sh
 
 EXPOSE 9092
